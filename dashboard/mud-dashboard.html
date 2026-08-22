@@ -1,0 +1,354 @@
+<title>MUD Naturals — Project Intelligence</title>
+<style>
+:root{
+  --paper:#F8F5EF; --panel:#FFFFFF; --panel-2:#F2EDE3;
+  --ink:#221F1A; --ink-2:#6B645A; --ink-3:#948C7F;
+  --line:#E4DED2; --line-2:#D6CEBF;
+  --clay:#B4552D; --clay-ink:#FFFFFF; --clay-soft:#F0DDD2;
+  --good:#3D7A4A; --good-bg:#E1EEE4;
+  --warn:#A8720F; --warn-bg:#F3EAD5;
+  --bad:#B03A2E; --bad-bg:#F4E0DD;
+  --track:#E9E3D7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#181510; --panel:#211E18; --panel-2:#282419;
+    --ink:#EDE7DB; --ink-2:#A69D8F; --ink-3:#7E766A;
+    --line:#353024; --line-2:#453E30;
+    --clay:#D98253; --clay-ink:#181510; --clay-soft:#4A3325;
+    --good:#7FB58C; --good-bg:#20301F;
+    --warn:#D0A14A; --warn-bg:#332B1B;
+    --bad:#D4735F; --bad-bg:#33221F;
+    --track:#2E2A20;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#181510; --panel:#211E18; --panel-2:#282419;
+  --ink:#EDE7DB; --ink-2:#A69D8F; --ink-3:#7E766A;
+  --line:#353024; --line-2:#453E30;
+  --clay:#D98253; --clay-ink:#181510; --clay-soft:#4A3325;
+  --good:#7FB58C; --good-bg:#20301F;
+  --warn:#D0A14A; --warn-bg:#332B1B;
+  --bad:#D4735F; --bad-bg:#33221F;
+  --track:#2E2A20;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace}
+.wrap{max-width:880px;margin:0 auto;padding:0 20px 80px}
+header.mast{border-bottom:1px solid var(--line-2);position:sticky;top:0;background:var(--paper);z-index:20}
+.mast-in{max-width:880px;margin:0 auto;padding:14px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+.mast h1{font-family:"Iowan Old Style",Georgia,serif;font-weight:600;font-size:20px;margin:0}
+.mast h1 em{font-style:normal;color:var(--clay)}
+.mast nav{margin-left:auto;display:flex;gap:14px;font-size:13px;font-weight:600}
+.mast nav a{color:var(--ink-2);text-decoration:none}
+.mast nav a:hover{color:var(--clay)}
+h2{font-family:"Iowan Old Style",Georgia,serif;font-weight:600;font-size:24px;margin:52px 0 6px;text-wrap:balance}
+.sub{color:var(--ink-2);margin:0 0 20px;max-width:62ch}
+/* ---- stepper ---- */
+.stepper{display:flex;align-items:flex-start;gap:0;margin:30px 0 8px;overflow-x:auto;padding-bottom:6px}
+.step{flex:1;min-width:104px;text-align:center;position:relative}
+.step::before{content:"";position:absolute;top:15px;left:-50%;width:100%;height:3px;background:var(--track)}
+.step:first-child::before{display:none}
+.step.done::before,.step.here::before{background:var(--good)}
+.step .dot{width:32px;height:32px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;background:var(--track);color:var(--ink-2);position:relative;z-index:1}
+.step.done .dot{background:var(--good);color:var(--paper)}
+.step.here .dot{background:var(--clay);color:var(--clay-ink);box-shadow:0 0 0 5px var(--clay-soft)}
+.step .lb{font-size:13px;font-weight:600;margin-top:8px}
+.step .st{font-size:11.5px;color:var(--ink-2)}
+.step.here .st{color:var(--clay);font-weight:700}
+/* ---- stat tiles ---- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:22px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.tile .big{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:30px;font-weight:700;line-height:1.1}
+.tile .big.ok{color:var(--good)} .tile .big.att{color:var(--clay)}
+.tile .cap{font-size:13px;color:var(--ink-2);margin-top:4px}
+/* ---- finding cards ---- */
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.fact .ico{font-size:22px}
+.fact h3{font-size:15.5px;margin:8px 0 4px;line-height:1.35}
+.fact p{margin:0;font-size:13.5px;color:var(--ink-2)}
+/* ---- market map ---- */
+.market{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.mcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.mcard h3{font-size:15px;margin:0 0 4px}
+.mcard .who{font-size:12.5px;color:var(--ink-3);margin-bottom:8px}
+.mcard p{margin:0;font-size:13.5px;color:var(--ink-2)}
+.gapbox{margin-top:14px;background:var(--clay-soft);border:1px solid var(--clay);border-radius:10px;padding:18px 20px}
+.gapbox h3{margin:0 0 6px;font-family:"Iowan Old Style",Georgia,serif;font-size:18px;color:var(--clay)}
+.gapbox p{margin:0;font-size:15px}
+/* ---- question cards ---- */
+.qbar{position:sticky;top:57px;z-index:10;background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:12px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:20px}
+.qbar .cnt{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-weight:700;font-size:17px}
+.qbar .bar{flex:1;min-width:120px;height:10px;background:var(--track);border-radius:5px;overflow:hidden}
+.qbar .bar i{display:block;height:100%;background:var(--good);border-radius:0 5px 5px 0;transition:width .3s}
+.qbar button{appearance:none;border:1px solid var(--line-2);background:var(--panel);color:var(--ink);font:600 13px system-ui,sans-serif;padding:8px 14px;border-radius:8px;cursor:pointer}
+.qbar button:hover{border-color:var(--clay);color:var(--clay)}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:16px}
+.q.answered{border-color:var(--good)}
+.q .num{font-family:ui-monospace,Consolas,monospace;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.q h3{font-size:18px;margin:6px 0 6px;line-height:1.4;text-wrap:balance}
+.q .why{font-size:14px;color:var(--ink-2);margin:0 0 14px}
+.q .btns{display:flex;gap:10px;flex-wrap:wrap}
+.q .btns button{appearance:none;font:700 15px system-ui,sans-serif;padding:10px 26px;border-radius:10px;cursor:pointer;border:2px solid var(--line-2);background:var(--panel);color:var(--ink)}
+.q .btns button:hover{border-color:var(--ink-2)}
+.q .btns button:focus-visible{outline:3px solid var(--clay);outline-offset:2px}
+.q .btns .yes[data-on]{background:var(--good);border-color:var(--good);color:var(--paper)}
+.q .btns .no[data-on]{background:var(--bad);border-color:var(--bad);color:var(--paper)}
+.q .btns .later[data-on]{background:var(--warn);border-color:var(--warn);color:var(--paper)}
+.q .out{display:none;margin-top:14px;border-radius:8px;padding:12px 15px;font-size:14px}
+.q .out.show{display:block}
+.q .out.y{background:var(--good-bg);color:var(--ink)}
+.q .out.n{background:var(--bad-bg);color:var(--ink)}
+.q .out.l{background:var(--warn-bg);color:var(--ink)}
+.q .out b{display:block;margin-bottom:2px}
+.reco{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--clay);background:var(--clay-soft);border-radius:999px;padding:3px 10px;margin-left:8px;vertical-align:middle}
+/* misc */
+.plain{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 20px;font-size:14.5px}
+.plain ul{margin:0;padding-left:20px}
+.plain li{margin:6px 0}
+footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink-3);font-size:13px}
+#copied{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s}
+#copied.show{opacity:1}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+
+<header class="mast">
+  <div class="mast-in">
+    <h1><em>MUD</em> Naturals — where we are</h1>
+    <nav>
+      <a href="#now">Status</a>
+      <a href="#learned">What we learned</a>
+      <a href="#market">The market</a>
+      <a href="#questions">Your answers</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============ STATUS ============ -->
+<section id="now">
+  <h2>Where the project is</h2>
+  <p class="sub">Research is done. The project is now waiting on <b>your answers below</b> — they unlock design and build.</p>
+
+  <div class="stepper">
+    <div class="step done"><div class="dot">✓</div><div class="lb">Research</div><div class="st">Done</div></div>
+    <div class="step here"><div class="dot">2</div><div class="lb">Decisions</div><div class="st">You are here</div></div>
+    <div class="step"><div class="dot">3</div><div class="lb">Design</div><div class="st">Next</div></div>
+    <div class="step"><div class="dot">4</div><div class="lb">Build</div><div class="st">—</div></div>
+    <div class="step"><div class="dot">5</div><div class="lb">Launch</div><div class="st">—</div></div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="big ok">14</div><div class="cap">research reports finished (of 15 planned)</div></div>
+    <div class="tile"><div class="big ok">21+</div><div class="cap">Nepali competitors studied</div></div>
+    <div class="tile"><div class="big att" id="tile-open">10</div><div class="cap">questions waiting for your yes/no</div></div>
+    <div class="tile"><div class="big att">3</div><div class="cap">things blocked on outsiders (eSewa answers, network checks)</div></div>
+  </div>
+</section>
+
+<!-- ============ LEARNED ============ -->
+<section id="learned">
+  <h2>What we learned — in one line each</h2>
+  <p class="sub">The 7 findings that matter most. Everything else is in the research folder if you want depth.</p>
+  <div class="facts">
+    <div class="fact"><div class="ico">🕳️</div><h3>Nobody in Nepal does what we plan.</h3><p>No shop combines beautiful curated homeware + easy Nepali payment + showing who made each product. The spot is empty.</p></div>
+    <div class="fact"><div class="ico">💵</div><h3>People pay more when they see the maker.</h3><p>Research shows shoppers pay roughly 17% more for products where the making is visible. That is our whole idea.</p></div>
+    <div class="fact"><div class="ico">📦</div><h3>8 of 10 online orders in Nepal are Cash on Delivery.</h3><p>We must offer it — but with a phone check first, or a quarter of parcels come back unpaid.</p></div>
+    <div class="fact"><div class="ico">🏷️</div><h3>Show the full price early.</h3><p>The #1 reason shoppers quit is surprise delivery costs at the end. Price + delivery shown up front, always.</p></div>
+    <div class="fact"><div class="ico">🔁</div><h3>eSewa won't tell us when someone pays.</h3><p>Their system only redirects the shopper's browser. We must double-check every payment ourselves. Solved — but it shapes the build.</p></div>
+    <div class="fact"><div class="ico">🧰</div><h3>The old ecommerce code is a parts bin, not a foundation.</h3><p>It has serious hidden bugs. We keep 4 good parts and build the rest fresh, smaller and safer.</p></div>
+    <div class="fact"><div class="ico">🤝</div><h3>Talk craft, not charity.</h3><p>"Woven over two days from sikki grass in Rautahat" sells. "Help poor artisans" doesn't — and can even harm trust.</p></div>
+  </div>
+</section>
+
+<!-- ============ MARKET ============ -->
+<section id="market">
+  <h2>The market, simply</h2>
+  <p class="sub">Three kinds of players exist today. Each has one strength and one weakness.</p>
+  <div class="market">
+    <div class="mcard"><h3>🏛️ The fair-trade veterans</h3><div class="who">Mahaguthi · Sana Hastakala · Dhukuti · WSDO</div><p><b>Strong:</b> 40 years of real artisan relationships and real impact.<br><b>Weak:</b> websites feel like 2014; huge unedited catalogues; some don't even show prices.</p></div>
+    <div class="mcard"><h3>✨ The young design brands</h3><div class="who">Kolpa · Mheecha · Aji's · Timro · Local Project</div><p><b>Strong:</b> modern taste; proof Nepalis pay Rs 2,000–4,000 for good local products.<br><b>Weak:</b> tiny teams, mostly physical shops, weak or no online checkout.</p></div>
+    <div class="mcard"><h3>🛒 The marketplaces</h3><div class="who">Daraz · Saino · Swodeshi · Himali Green</div><p><b>Strong:</b> apps, payments, delivery all work.<br><b>Weak:</b> everything is for sale, so nothing feels special. No curation, no story.</p></div>
+  </div>
+  <div class="gapbox">
+    <h3>The gap MUD fills</h3>
+    <p>A beautifully curated shop <b>+</b> easy Nepali payment (eSewa / Khalti / COD) <b>+</b> every product showing <b>who made it and where</b>. Each piece is proven to work in Nepal — no one has put them together.</p>
+  </div>
+</section>
+
+<!-- ============ QUESTIONS ============ -->
+<section id="questions">
+  <h2>10 questions — answer yes or no</h2>
+  <p class="sub">Tap an answer. It saves on this device and shows what happens next. "Decide later" is fine — it just stays on the list. When done, hit <b>Copy my answers</b> and send them to the team.</p>
+
+  <div class="qbar">
+    <span class="cnt"><span id="done-n">0</span>/10 answered</span>
+    <div class="bar"><i id="done-bar" style="width:0%"></i></div>
+    <button id="copy">📋 Copy my answers</button>
+    <button id="reset">Reset</button>
+  </div>
+
+  <div class="q" data-k="q1">
+    <div class="num">Question 1 · Store type</div>
+    <h3>Should MUD be a curated shop — we choose every product — rather than an open marketplace where anyone can sell? <span class="reco">Research says yes</span></h3>
+    <p class="why">Marketplaces already exist in Nepal (Daraz, Saino) and earn tiny commissions. A curated shop keeps quality, story and margin in our hands.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> We build one branded shop. Makers stay behind the scenes as partners; we can still add more makers over time.</div>
+    <div class="out n"><b>No →</b> We build seller sign-up, seller tools and dispute handling — a much bigger, thinner-margin build competing head-on with Daraz and Saino.</div>
+    <div class="out l"><b>Later →</b> Design can't start on the shop structure until this is decided. It is the biggest fork in the road.</div>
+  </div>
+
+  <div class="q" data-k="q2">
+    <div class="num">Question 2 · Our promise</div>
+    <h3>Should our promise to customers be: "every object shows who made it and where it came from"? <span class="reco">Research says yes</span></h3>
+    <p class="why">Everyone in Nepal <i>claims</i> to support artisans. Nobody actually shows the maker on the product page. This scored highest of 6 positioning options we tested.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> Every product page gets a "who made this" section, and we collect maker info for every item before it goes live.</div>
+    <div class="out n"><b>No →</b> We fall back to "beautiful Nepali design" — nice, but two brands already claim it and it's easy to copy.</div>
+    <div class="out l"><b>Later →</b> The website's signature feature stays undesigned.</div>
+  </div>
+
+  <div class="q" data-k="q3">
+    <div class="num">Question 3 · Paying makers</div>
+    <h3>Will MUD buy products from makers up front (we own the stock), rather than paying them only after items sell?</h3>
+    <p class="why">Buying up front is simpler and fairer to makers (they get paid immediately), but ties up our cash. Pay-after-sale needs a running money ledger per maker.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> Simple stock and payments system. We carry the inventory risk.</div>
+    <div class="out n"><b>No →</b> We build a per-maker earnings ledger and payout process into the admin system.</div>
+    <div class="out l"><b>Later →</b> The database design for stock and payments waits on this.</div>
+  </div>
+
+  <div class="q" data-k="q4">
+    <div class="num">Question 4 · Naming makers</div>
+    <h3>Can we show makers' real names and photos on the website — with their written permission?</h3>
+    <p class="why">Named real people are our strongest trust signal. But it needs consent from each maker, and some may prefer their group/community named instead.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> We create simple consent forms and build maker profile pages with names, photos and quotes.</div>
+    <div class="out n"><b>No →</b> We name the community/village instead of the person — still works, slightly weaker emotionally.</div>
+    <div class="out l"><b>Later →</b> Ask the makers first — this is really their decision. Design will prepare both versions.</div>
+  </div>
+
+  <div class="q" data-k="q5">
+    <div class="num">Question 5 · Cash on Delivery</div>
+    <h3>Should we offer Cash on Delivery at launch — with a phone confirmation before we ship? <span class="reco">Research says yes</span></h3>
+    <p class="why">~80% of Nepali online orders are COD. Refusing it kills sales. But unconfirmed COD means ~1 in 4 parcels comes back — the phone check fixes most of that.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> Checkout gets a COD option + an OTP/WhatsApp confirmation step before dispatch.</div>
+    <div class="out n"><b>No →</b> eSewa-only checkout. Simpler build, but expect far fewer first-time buyers.</div>
+    <div class="out l"><b>Later →</b> Checkout design proceeds with COD included; easy to switch off.</div>
+  </div>
+
+  <div class="q" data-k="q6">
+    <div class="num">Question 6 · Gifting</div>
+    <h3>Should we sell corporate & festival gift boxes from day one?</h3>
+    <p class="why">Banks and IT firms already buy Dashain/Tihar gifts every year — mostly chocolate and dry fruit. Craft-grade gifting is an open lane, and bulk orders give us steady income.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> A "Gifting" page + a bulk-enquiry form at launch, and a gift-box product line in the first collection.</div>
+    <div class="out n"><b>No →</b> Consumer shop only; gifting added later once operations settle.</div>
+    <div class="out l"><b>Later →</b> We keep a simple enquiry form either way — costs almost nothing.</div>
+  </div>
+
+  <div class="q" data-k="q7">
+    <div class="num">Question 7 · Stories</div>
+    <h3>Will someone on the team publish one story/article per month (a maker visit, a craft, a material)?</h3>
+    <p class="why">Stories bring free Google traffic and make the brand feel alive. But a journal with 3 old posts looks worse than no journal.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> "Journal" goes in the main menu; we launch with 8–10 stories ready.</div>
+    <div class="out n"><b>No →</b> No journal in the menu. Maker pages alone carry the story — still strong.</div>
+    <div class="out l"><b>Later →</b> Design prepares the journal but keeps it out of the menu until you commit.</div>
+  </div>
+
+  <div class="q" data-k="q8">
+    <div class="num">Question 8 · Photography</div>
+    <h3>Is there budget for one professional photo shoot (products + makers at work + villages)?</h3>
+    <p class="why">Photography is the single biggest thing that makes a shop feel premium. Every premium brand we studied is carried by its photos.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> We design a photo-led website and write a shot list for the photographer.</div>
+    <div class="out n"><b>No →</b> We switch to a typography-led design that still looks premium with modest photos. It works — different flavour.</div>
+    <div class="out l"><b>Later →</b> Get one quote from a Kathmandu studio first; the design direction genuinely depends on this.</div>
+  </div>
+
+  <div class="q" data-k="q9">
+    <div class="num">Question 9 · Where we ship</div>
+    <h3>Ship only within Nepal at launch? <span class="reco">Research says yes</span></h3>
+    <p class="why">International cards + air freight from Nepal are genuinely hard. The smart bridge: let Nepalis abroad order gifts <i>delivered to family in Nepal</i> — no export needed.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> Nepal-only delivery + a "send a gift home" flow for the diaspora. Export becomes phase 2.</div>
+    <div class="out n"><b>No →</b> We must solve international payments and expensive shipping before launch — expect months of delay.</div>
+    <div class="out l"><b>Later →</b> Build proceeds Nepal-only; nothing is lost by deciding later.</div>
+  </div>
+
+  <div class="q" data-k="q10">
+    <div class="num">Question 10 · Language</div>
+    <h3>English-only website at launch? <span class="reco">Research says yes</span></h3>
+    <p class="why">Our first buyers (urban Kathmandu + diaspora) shop comfortably in English. A half-translated site feels less trustworthy than a confident English one.</p>
+    <div class="btns"><button class="yes">Yes</button><button class="no">No</button><button class="later">Decide later</button></div>
+    <div class="out y"><b>Yes →</b> English now, built so Nepali can be added later without rework.</div>
+    <div class="out n"><b>No →</b> We add Nepali translation work to the launch plan — more time, needs a translator.</div>
+    <div class="out l"><b>Later →</b> Build proceeds in English with translation kept possible.</div>
+  </div>
+
+  <div class="plain" style="margin-top:24px">
+    <b>Not your call (already handled by research):</b>
+    <ul>
+      <li>Payment double-checking system for eSewa — required, designed, no decision needed.</li>
+      <li>Security rules for the database — fixed checklist, non-negotiable.</li>
+      <li>Old code reuse — engineering keeps 4 proven parts, rebuilds the rest.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>MUD Naturals · internal · answers save only on this device — use “Copy my answers” to share them. Detailed research lives in <span class="mono">mudnaturals/research/</span>.</footer>
+</div>
+
+<div id="copied">Copied — paste it to the team</div>
+
+<script>
+const QS=[...document.querySelectorAll('.q')];
+const KEY='mud-answers-v1';
+const store=()=>{const o={};QS.forEach(q=>{if(q.dataset.a)o[q.dataset.k]=q.dataset.a});localStorage.setItem(KEY,JSON.stringify(o))};
+const paint=q=>{
+  const a=q.dataset.a;
+  q.querySelectorAll('.btns button').forEach(b=>b.removeAttribute('data-on'));
+  q.querySelectorAll('.out').forEach(o=>o.classList.remove('show'));
+  q.classList.toggle('answered', a==='yes'||a==='no');
+  if(a){
+    const cls=a==='yes'?'yes':a==='no'?'no':'later';
+    q.querySelector('.btns .'+cls).setAttribute('data-on','');
+    q.querySelector('.out.'+(a==='yes'?'y':a==='no'?'n':'l')).classList.add('show');
+  }
+};
+const tally=()=>{
+  const n=QS.filter(q=>q.dataset.a==='yes'||q.dataset.a==='no').length;
+  document.getElementById('done-n').textContent=n;
+  document.getElementById('done-bar').style.width=(n*10)+'%';
+  document.getElementById('tile-open').textContent=10-n;
+};
+QS.forEach(q=>{
+  q.querySelector('.yes').onclick=()=>{q.dataset.a=q.dataset.a==='yes'?'':'yes';paint(q);tally();store()};
+  q.querySelector('.no').onclick=()=>{q.dataset.a=q.dataset.a==='no'?'':'no';paint(q);tally();store()};
+  q.querySelector('.later').onclick=()=>{q.dataset.a=q.dataset.a==='later'?'':'later';paint(q);tally();store()};
+});
+try{
+  const saved=JSON.parse(localStorage.getItem(KEY)||'{}');
+  QS.forEach(q=>{if(saved[q.dataset.k]){q.dataset.a=saved[q.dataset.k];paint(q)}});
+}catch(e){}
+tally();
+document.getElementById('copy').onclick=()=>{
+  const lines=['MUD Naturals — product owner answers ('+new Date().toLocaleDateString()+')',''];
+  QS.forEach((q,i)=>{
+    const t=q.querySelector('h3').textContent.replace(/Research says yes/,'').trim();
+    const a=q.dataset.a==='yes'?'YES':q.dataset.a==='no'?'NO':q.dataset.a==='later'?'DECIDE LATER':'(unanswered)';
+    lines.push((i+1)+'. '+t+'\n   → '+a);
+  });
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>{
+    const c=document.getElementById('copied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1800);
+  });
+};
+document.getElementById('reset').onclick=()=>{
+  QS.forEach(q=>{q.dataset.a='';paint(q)});localStorage.removeItem(KEY);tally();
+};
+</script>
