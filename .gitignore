@@ -42,3 +42,4 @@ yarn-error.log*
 
 # local build escape hatch (see NEXT_DIST_DIR in next.config.ts)
 .next-verify/
+.next-nodb/

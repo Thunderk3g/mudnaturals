@@ -10,7 +10,17 @@ declare global {
 
 function connect() {
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set");
+  if (!url) {
+    // Thrown on first query rather than at import. Next collects page config by
+    // importing modules during the build, so throwing at module scope turns a
+    // missing variable into "failed to collect configuration for /_not-found",
+    // which says nothing useful about the actual cause.
+    throw new Error(
+      "DATABASE_URL is not set. On Vercel, check that it is not marked Sensitive — " +
+        "sensitive variables are withheld during the build, and pages that prerender " +
+        "from the database need it then."
+    );
+  }
 
   return postgres(url, {
     ssl: "require",
@@ -24,8 +34,18 @@ function connect() {
   });
 }
 
-export const sql = globalThis.__mudSql ?? connect();
-if (process.env.NODE_ENV !== "production") globalThis.__mudSql = sql;
+// Connect lazily on first use. The proxy keeps the ergonomic `sql\`…\`` call
+// shape while deferring the connection past module import.
+function client() {
+  if (!globalThis.__mudSql) globalThis.__mudSql = connect();
+  return globalThis.__mudSql;
+}
+
+export const sql = new Proxy((() => {}) as unknown as ReturnType<typeof postgres>, {
+  apply: (_t, _this, args) => (client() as unknown as (...a: unknown[]) => unknown)(...args),
+  get: (_t, prop) => Reflect.get(client() as object, prop),
+  has: (_t, prop) => Reflect.has(client() as object, prop),
+}) as ReturnType<typeof postgres>;
 
 /**
  * Opens the single transaction for a request. Every module function takes the
