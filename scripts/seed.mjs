@@ -583,8 +583,11 @@ for (const m of MATERIALS) {
 }
 
 for (const t of TECHNIQUES) {
+  // postgres.js serialises objects for jsonb itself. Pre-stringifying stores a
+  // JSON *string* instead of an array, so jsonb_typeof reads "string" and every
+  // consumer that maps over it fails.
   const [row] = await sql`
-    insert into craft_techniques ${sql({ ...t, steps: JSON.stringify(t.steps), status: "published" })} returning id`;
+    insert into craft_techniques ${sql({ ...t, steps: sql.json(t.steps), status: "published" })} returning id`;
   techniqueId[t.slug] = row.id;
 }
 
@@ -667,7 +670,7 @@ for (const [i, post] of JOURNAL.entries()) {
 
   const [version] = await sql`insert into content_versions ${sql({
     page_id: page.id,
-    blocks: JSON.stringify(post.body.map((text) => ({ type: "paragraph", text }))),
+    blocks: sql.json(post.body.map((text) => ({ type: "paragraph", text }))),
     excerpt: post.excerpt,
     hero_image: post.hero_image,
     author: "MUD Naturals",

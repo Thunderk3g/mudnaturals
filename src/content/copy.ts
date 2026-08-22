@@ -238,7 +238,10 @@ export const copy = {
     shopHeading: "Shop",
     discoverHeading: "Discover",
     aboutHeading: "About",
-    helpHeading: "Help",
+    // "Customer care" rather than "Help" or "Support": both of those carry the
+    // charity register this brand's copy rules ban, and the distinction is not
+    // worth relitigating on every page.
+    helpHeading: "Customer care",
     shipping: "Shipping & delivery",
     returns: "Returns",
     trackOrder: "Track order",
