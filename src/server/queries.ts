@@ -275,22 +275,37 @@ export async function listCraft() {
   return { materials, techniques };
 }
 
+export type CraftStep = { step: number; title: string; body: string };
+
+/** A craft slug resolves to either a material or a technique, never both. */
+export type CraftEntry =
+  | {
+      kind: "material";
+      slug: string; name: string; local_name: string | null;
+      description: string | null; origin_note: string | null;
+      steps: null;
+    }
+  | {
+      kind: "technique";
+      slug: string; name: string; local_name: string | null;
+      description: string | null; origin_note: null;
+      steps: CraftStep[];
+    };
+
 export async function getCraft(slug: string) {
-  const [material] = await sql<{
-    kind: "material"; slug: string; name: string; local_name: string | null;
-    description: string | null; origin_note: string | null; steps: null;
-  }[]>`
-    select 'material' as kind, slug, name, local_name, description, origin_note, null::jsonb as steps
+  const [material] = await sql<Extract<CraftEntry, { kind: "material" }>[]>`
+    select 'material'::text as kind, slug, name, local_name, description, origin_note,
+           null::jsonb as steps
       from materials where slug = ${slug} and status = 'published'`;
 
-  const [technique] = material ? [null] : await sql<{
-    kind: "technique"; slug: string; name: string; local_name: string | null;
-    description: string | null; origin_note: null; steps: { step: number; title: string; body: string }[];
-  }[]>`
-    select 'technique' as kind, slug, name, local_name, description, null as origin_note, steps
-      from craft_techniques where slug = ${slug} and status = 'published'`;
+  const [technique] = material
+    ? []
+    : await sql<Extract<CraftEntry, { kind: "technique" }>[]>`
+        select 'technique'::text as kind, slug, name, local_name, description,
+               null::text as origin_note, steps
+          from craft_techniques where slug = ${slug} and status = 'published'`;
 
-  const entry = material ?? technique;
+  const entry: CraftEntry | undefined = material ?? technique;
   if (!entry) return null;
 
   const products = await sql<ProductCard[]>`

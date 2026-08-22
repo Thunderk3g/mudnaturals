@@ -1,12 +1,19 @@
 {
-  "name": "mudapp",
+  "name": "mudnaturals",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:status": "node scripts/migrate.mjs --status",
+    "db:seed": "node scripts/seed.mjs",
+    "media": "node scripts/prepare-images.mjs",
+    "security": "node scripts/security-smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
