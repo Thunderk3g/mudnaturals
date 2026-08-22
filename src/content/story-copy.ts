@@ -26,6 +26,32 @@ export function isoDate(value: string | Date | null): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
+/**
+ * Normalises a jsonb array column that may not arrive as an array.
+ *
+ * `craft_techniques.steps` and `content_versions.blocks` are currently stored
+ * double-encoded — the seed hands postgres.js an already-stringified array and
+ * the driver stringifies it again, so `jsonb_typeof` reads "string" and the
+ * driver hands back a string. The declared types in `queries.ts` say array, so
+ * a page that trusts them throws `steps.map is not a function` inside the RSC
+ * serializer, which fails the Suspense boundary silently rather than loudly.
+ *
+ * Decoding here keeps the story pages rendering on today's data and needs no
+ * change once the seed is fixed: a real array passes straight through.
+ */
+export function jsonArray<T>(value: unknown): T[] {
+  let current = value;
+  // Two rounds covers the double encoding; more than that is corrupt data.
+  for (let i = 0; i < 2 && typeof current === "string"; i++) {
+    try {
+      current = JSON.parse(current);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(current) ? (current as T[]) : [];
+}
+
 export const storyCopy = {
   shared: {
     shopEverything: "Browse the shop",

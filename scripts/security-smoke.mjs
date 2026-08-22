@@ -7,15 +7,9 @@
 // The reference project this build replaces shipped to production with
 // GET /rest/v1/users returning email addresses and password hashes.
 
-import fs from "node:fs";
+import { loadEnv } from "./env.mjs";
 
-for (const file of [".env.local", ".env"]) {
-  if (!fs.existsSync(file)) continue;
-  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
-    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-  }
-}
+loadEnv();
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -43,8 +37,26 @@ const MUST_BE_EMPTY = [
   "impact_by_maker", "impact_by_community",
 ];
 
+// This script gates deploys, so a flaky network must never be reported as
+// either a pass or a leak. Transport failures retry; if they persist, the run
+// aborts loudly rather than returning a verdict it cannot stand behind.
+async function request(path, init) {
+  let lastError;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      return await fetch(path, init);
+    } catch (err) {
+      lastError = err;
+      await new Promise((r) => setTimeout(r, attempt * 2000));
+    }
+  }
+  console.error(`\nnetwork unreachable after 4 attempts: ${lastError?.cause?.code ?? lastError?.message}`);
+  console.error("cannot verify the security posture — treat this as UNKNOWN, not as a pass.");
+  process.exit(2);
+}
+
 async function probe(table) {
-  const res = await fetch(`${url}/rest/v1/${table}?select=*&limit=1`, {
+  const res = await request(`${url}/rest/v1/${table}?select=*&limit=1`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
   });
   let body = null;
@@ -78,7 +90,7 @@ for (const table of PUBLIC_OK) {
 // Privileged functions must not be callable by the anon role either.
 console.log("\nRPC exposure:\n");
 for (const fn of ["place_order", "confirm_payment", "get_order_by_token", "impact_summary", "record_intake"]) {
-  const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+  const res = await request(`${url}/rest/v1/rpc/${fn}`, {
     method: "POST",
     headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: "{}",

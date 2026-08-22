@@ -11,16 +11,10 @@
 // see QUESTIONS.md #1. `maker_share_paisa` is deliberately null so the PDP
 // impact module stays hidden rather than printing a number nobody has agreed.
 
-import fs from "node:fs";
 import postgres from "postgres";
+import { loadEnv } from "./env.mjs";
 
-for (const file of [".env.local", ".env"]) {
-  if (!fs.existsSync(file)) continue;
-  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
-    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-  }
-}
+loadEnv();
 
 const sql = postgres(process.env.DATABASE_URL, {
   ssl: "require",

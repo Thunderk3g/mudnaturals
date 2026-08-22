@@ -6,11 +6,20 @@ import { getJournalPost } from "@/server/queries";
 import { Section, Breadcrumb, Rule } from "@/components/ui/layout";
 import { ProductRail } from "@/components/story/product-rail";
 import { copy } from "@/content/copy";
-import { storyCopy, siteUrl, formatSpecDate, isoDate } from "@/content/story-copy";
+import { storyCopy, siteUrl, formatSpecDate, isoDate, jsonArray } from "@/content/story-copy";
 
 export const revalidate = 300;
 
 type Params = { params: Promise<{ slug: string }> };
+
+type Block = { type: string; text: string };
+
+/** `blocks` is stored double-encoded, so it is decoded before it is read. */
+function paragraphsOf(blocks: unknown): string[] {
+  return jsonArray<Block>(blocks)
+    .filter((block) => block.type === "paragraph" && typeof block.text === "string" && block.text)
+    .map((block) => block.text);
+}
 
 /** JSON-LD goes into a script tag, so `<` never survives as a literal. */
 function ldJson(data: unknown) {
@@ -22,7 +31,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const post = await getJournalPost(slug);
   if (!post) return { title: copy.errors.notFoundTitle };
 
-  const description = post.excerpt ?? post.blocks.find((b) => b.text)?.text ?? copy.journal.intro;
+  const description = post.excerpt ?? paragraphsOf(post.blocks)[0] ?? copy.journal.intro;
   return {
     title: post.title,
     description,

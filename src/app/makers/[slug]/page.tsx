@@ -8,7 +8,7 @@ import { SpecList } from "@/components/ui/spec";
 import { ProductRail } from "@/components/story/product-rail";
 import { ProcessSteps, type ProcessStep } from "@/components/story/process-steps";
 import { copy } from "@/content/copy";
-import { storyCopy, siteUrl } from "@/content/story-copy";
+import { storyCopy, siteUrl, jsonArray } from "@/content/story-copy";
 
 export const revalidate = 300;
 
@@ -42,9 +42,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * past a couple of dozen rows this wants a single maker→technique query in
  * `queries.ts` instead.
  *
- * The `steps` cast is deliberate: `getCraft`'s declared return type collapses
- * to the material shape, because the `material ?? technique` in queries.ts
- * erases the union. The discriminant is real at runtime.
+ * `steps` goes through `jsonArray` because that column is stored double-encoded
+ * and `getCraft`'s declared return type collapses to the material shape — the
+ * `material ?? technique` in queries.ts erases the union. Both are worked
+ * around here rather than in a shared file this page does not own.
  */
 async function techniquesPractisedBy(makerSlug: string) {
   const { techniques } = await listCraft();
@@ -57,7 +58,7 @@ async function techniquesPractisedBy(makerSlug: string) {
         slug: craft.slug,
         name: craft.name,
         description: craft.description,
-        steps: craft.steps as ProcessStep[] | null,
+        steps: jsonArray<ProcessStep>(craft.steps),
       },
     ];
   });

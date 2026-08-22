@@ -7,7 +7,7 @@ import { SpecList } from "@/components/ui/spec";
 import { ProductRail } from "@/components/story/product-rail";
 import { ProcessSteps, type ProcessStep } from "@/components/story/process-steps";
 import { copy } from "@/content/copy";
-import { storyCopy } from "@/content/story-copy";
+import { storyCopy, jsonArray } from "@/content/story-copy";
 
 export const revalidate = 300;
 
@@ -52,7 +52,7 @@ export default async function CraftEntryPage({ params }: Params) {
   if (!craft) notFound();
 
   const isTechnique = craftKind(craft) === "technique";
-  const steps = isTechnique ? (craft.steps as ProcessStep[] | null) : null;
+  const steps = isTechnique ? jsonArray<ProcessStep>(craft.steps) : [];
   const originNote = isTechnique ? null : craft.origin_note;
   const kindLabel = isTechnique ? storyCopy.craft.kindTechnique : storyCopy.craft.kindMaterial;
 
@@ -105,7 +105,7 @@ export default async function CraftEntryPage({ params }: Params) {
               </Prose>
             ) : null}
 
-            {isTechnique && steps?.length ? (
+            {isTechnique && steps.length ? (
               <div className="mt-12">
                 <h2 className="text-2xl">{storyCopy.craft.steps}</h2>
                 <p className="mt-2 max-w-[58ch] text-ink-2">{storyCopy.makers.processIntro}</p>

@@ -8,15 +8,8 @@ import fs from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
 
-function loadEnv() {
-  for (const file of [".env.local", ".env"]) {
-    if (!fs.existsSync(file)) continue;
-    for (const line of fs.readFileSync(file, "utf8").split("\n")) {
-      const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-    }
-  }
-}
+import { loadEnv } from "./env.mjs";
+
 loadEnv();
 
 if (!process.env.DATABASE_URL) {
