@@ -109,6 +109,18 @@ Non-negotiables:
   portal and the cron detects the status flipping to `*_REFUND`.
 - Signing runs on the **Node runtime** (`node:crypto`), never Edge.
 
+### Region
+
+The Supabase project is in **ap-northeast-2 (Seoul)**, so every query from a
+function elsewhere pays a cross-Pacific round trip. Pinning functions to `icn1`
+would fix that, but **the Hobby plan does not allow a region override** — adding
+`regions` to `vercel.json` fails the deployment during config validation, before
+the build starts (it shows up as a build of `0ms`, which is not an obvious clue).
+Set it when the plan is upgraded.
+
+Note also that `vercel.json` rejects unknown keys, so it cannot carry comments —
+hence this section.
+
 ### Known limitation: cron frequency
 
 Vercel **Hobby** caps cron at once per day; reconciliation wants every 2–5

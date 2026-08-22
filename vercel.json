@@ -1,10 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-
-  "//regions": "The Supabase project lives in ap-northeast-2 (Seoul). Running functions anywhere else puts a cross-Pacific round trip in front of every query, which matters here because pages read provenance across several joined tables. icn1 is Seoul.",
-  "regions": ["icn1"],
-
-  "//crons": "Vercel Hobby caps cron frequency at once per day. Payment reconciliation wants every 2-5 minutes, and since eSewa ePay v2 provides no reliable server-to-server notification, this cron is the primary confirmation channel rather than a safety net. Until the plan is upgraded, three things carry it: the return handler confirms synchronously for customers whose browser comes back, the order status page polls the database itself, and the admin reconciliation queue has a Reconcile now action. On Pro, change the schedule to */5 * * * *.",
   "crons": [
     { "path": "/api/cron/reconcile-payments", "schedule": "0 3 * * *" },
     { "path": "/api/cron/expire-attempts", "schedule": "30 3 * * *" }
