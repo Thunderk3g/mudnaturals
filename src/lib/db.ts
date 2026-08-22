@@ -22,10 +22,18 @@ function connect() {
     );
   }
 
+  // DATABASE_URL points at Supabase's transaction pooler (port 6543), not the
+  // direct host. Two reasons, and the first one is not optional: the direct
+  // host resolves to IPv6 only, and Vercel's build and runtime networks have no
+  // IPv6 egress, so it fails with ENETUNREACH. The pooler is also simply the
+  // right shape for serverless — many short-lived callers, one shared pool.
+  //
+  // Transaction mode does not support prepared statements, hence `prepare: false`.
   return postgres(url, {
     ssl: "require",
-    // Serverless functions are short-lived and concurrent; a small pool per
-    // instance keeps us well under Supabase's connection ceiling.
+    prepare: false,
+    // The pooler owns real connection management; keep the per-instance pool
+    // small so a burst of functions cannot exhaust the upstream.
     max: 5,
     idle_timeout: 20,
     connect_timeout: 15,
