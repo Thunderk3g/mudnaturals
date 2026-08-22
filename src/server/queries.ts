@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { sql } from "@/lib/db";
 
 /**
@@ -365,20 +366,34 @@ export async function getJournalPost(slug: string) {
   return { ...post, products };
 }
 
-export async function getImpactSummary() {
-  const [row] = await sql<{ impact_summary: Record<string, unknown> }[]>`select impact_summary()`;
-  return row?.impact_summary ?? {};
-}
+/**
+ * Cached deliberately. The footer renders these counts on every page, and
+ * `impact_summary()` is an aggregate — running it per request meant eighteen
+ * concurrent aggregates during a build, which is enough to hit Postgres'
+ * statement timeout and stall the whole render. These numbers move a few times
+ * a week at most, so an hour of staleness costs nothing.
+ */
+export const getImpactSummary = unstable_cache(
+  async () => {
+    const [row] = await sql<{ impact_summary: Record<string, unknown> }[]>`select impact_summary()`;
+    return row?.impact_summary ?? {};
+  },
+  ["impact-summary"],
+  { revalidate: 3600, tags: ["impact"] },
+);
 
-export async function listImpactByCommunity() {
-  return sql<{
-    community_name: string; community_slug: string; district: string;
-    maker_count: number; units_sold: number; paid_to_maker_paisa: number;
-  }[]>`
-    select community_name, community_slug, district, maker_count,
-           units_sold, paid_to_maker_paisa
-      from impact_by_community order by community_name`;
-}
+export const listImpactByCommunity = unstable_cache(
+  async () =>
+    sql<{
+      community_name: string; community_slug: string; district: string;
+      maker_count: number; units_sold: number; paid_to_maker_paisa: number;
+    }[]>`
+      select community_name, community_slug, district, maker_count,
+             units_sold, paid_to_maker_paisa
+        from impact_by_community order by community_name`,
+  ["impact-by-community"],
+  { revalidate: 3600, tags: ["impact"] },
+);
 
 /** Products by the same maker, excluding the one being viewed. */
 export async function listRelatedByMaker(makerSlug: string, excludeSlug: string, limit = 4) {

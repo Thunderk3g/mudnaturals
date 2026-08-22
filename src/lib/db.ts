@@ -22,20 +22,22 @@ function connect() {
     );
   }
 
-  // DATABASE_URL points at Supabase's transaction pooler (port 6543), not the
-  // direct host. Two reasons, and the first one is not optional: the direct
-  // host resolves to IPv6 only, and Vercel's build and runtime networks have no
-  // IPv6 egress, so it fails with ENETUNREACH. The pooler is also simply the
-  // right shape for serverless — many short-lived callers, one shared pool.
+  // DATABASE_URL points at Supabase's **session** pooler (port 5432).
   //
-  // Transaction mode does not support prepared statements, hence `prepare: false`.
+  // Not the direct host: it resolves to IPv6 only, and Vercel has no IPv6
+  // egress, so connecting there fails with ENETUNREACH.
+  //
+  // Not the transaction pooler (6543) either, despite that being the usual
+  // serverless advice. Measured against this project, postgres.js stalls on it
+  // under concurrency — 20 parallel queries returned 8 and hung the rest until
+  // the two-minute statement timeout, which is exactly how the first builds
+  // failed. The same test against session mode returns 20/20 in about two
+  // seconds. Session mode also behaves like a real connection, so prepared
+  // statements work and stay on.
   return postgres(url, {
     ssl: "require",
-    prepare: false,
-    // Small, but not one. The pooler does the real pooling, yet a single
-    // connection serialises every query in the process, so one stalled socket
-    // blocks everything behind it — and `withTx` holding the only connection
-    // while anything else reaches for `sql` would deadlock outright.
+    // Modest: session mode holds an upstream connection per client connection,
+    // so this multiplies across serverless instances.
     max: 4,
     idle_timeout: 10,
     connect_timeout: 15,
