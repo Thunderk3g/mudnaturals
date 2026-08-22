@@ -32,28 +32,24 @@ function connect() {
   return postgres(url, {
     ssl: "require",
     prepare: false,
-    // The pooler owns real connection management; keep the per-instance pool
-    // small so a burst of functions cannot exhaust the upstream.
-    max: 5,
-    idle_timeout: 20,
+    // Small, but not one. The pooler does the real pooling, yet a single
+    // connection serialises every query in the process, so one stalled socket
+    // blocks everything behind it — and `withTx` holding the only connection
+    // while anything else reaches for `sql` would deadlock outright.
+    max: 4,
+    idle_timeout: 10,
     connect_timeout: 15,
     connection: { search_path: "public, extensions" },
     transform: { undefined: null },
   });
 }
 
-// Connect lazily on first use. The proxy keeps the ergonomic `sql\`…\`` call
-// shape while deferring the connection past module import.
-function client() {
-  if (!globalThis.__mudSql) globalThis.__mudSql = connect();
-  return globalThis.__mudSql;
-}
-
-export const sql = new Proxy((() => {}) as unknown as ReturnType<typeof postgres>, {
-  apply: (_t, _this, args) => (client() as unknown as (...a: unknown[]) => unknown)(...args),
-  get: (_t, prop) => Reflect.get(client() as object, prop),
-  has: (_t, prop) => Reflect.has(client() as object, prop),
-}) as ReturnType<typeof postgres>;
+// postgres.js does not dial on construction — it connects on the first query —
+// so building the client at module scope is already lazy where it matters, and
+// it avoids wrapping the tagged-template callable in a proxy that every module
+// inspector would trip over.
+export const sql = globalThis.__mudSql ?? connect();
+globalThis.__mudSql = sql;
 
 /**
  * Opens the single transaction for a request. Every module function takes the
