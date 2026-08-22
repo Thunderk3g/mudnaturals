@@ -1,26 +1,142 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---------------------------------------------------------------------------
+   MUD Naturals — "Catalogue of Origins"
+
+   Museum catalogue meets field notebook. Colour is withheld so photography and
+   provenance data carry the page: warm paper ground, ink that is never pure
+   black, and a clay ochre accent held to roughly 5% of any screen.
+
+   Print-like single theme by design — no dark mode on the storefront.
+--------------------------------------------------------------------------- */
+
+@theme {
+  --color-paper: #f7f4ee;
+  --color-paper-deep: #f0ece2;
+  --color-surface: #ffffff;
+  --color-ink: #1c1a17;
+  --color-ink-2: #6b645a;
+  --color-ink-3: #948c7f;
+  --color-rule: #e4ded2;
+  --color-rule-strong: #d6cebf;
+  --color-clay: #b4552d;
+  --color-clay-soft: #f0ddd2;
+
+  --color-ok: #3d7a4a;
+  --color-ok-soft: #e1eee4;
+  --color-warn: #a8720f;
+  --color-warn-soft: #f3ead5;
+  --color-bad: #b03a2e;
+  --color-bad-soft: #f4e0dd;
+
+  --font-serif: var(--font-display), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-spec), ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --spacing-band: 7.5rem; /* 120px — section air, held on mobile too */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Inter needs tightening to escape looking like a default. */
+    letter-spacing: -0.011em;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    text-wrap: balance;
+    letter-spacing: -0.015em;
+  }
+
+  /* The specimen-label register. Every piece of provenance and spec data wears
+     it: maker, district, material, hours, SKU, dimensions. */
+  .spec {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1.5;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
+  .spec-value {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: var(--color-ink);
+  }
+
+  .rule {
+    border: 0;
+    border-top: 1px solid var(--color-rule);
+  }
+
+  ::selection {
+    background: var(--color-clay-soft);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-clay);
+    outline-offset: 2px;
+  }
+
+  /* Motion budget: one fade-and-rise on entry, nothing else. */
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .rise {
+    animation: rise-in 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .container-page {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 82rem;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 1024px) {
+    .container-page { padding-inline: 2.5rem; }
+  }
+
+  /* Skip link: visible the moment it takes focus. */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+  }
+  .skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+  }
 }
