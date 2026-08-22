@@ -39,3 +39,6 @@ yarn-error.log*
 .agents/
 .vercel
 .env*
+
+# local build escape hatch (see NEXT_DIST_DIR in next.config.ts)
+.next-verify/

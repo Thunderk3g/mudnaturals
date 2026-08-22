@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Escape hatch for local builds: on Windows, antivirus and folder sync hold
+  // handles inside .next and the export step fails renaming files. Point the
+  // build somewhere unsynced with NEXT_DIST_DIR. Unset everywhere else.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
+
   images: {
     // Product photography is served from /public/media, so no remote hosts are
     // whitelisted. Adding one later is a deliberate act, not an accident.

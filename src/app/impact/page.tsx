@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getImpactSummary, listImpactByCommunity, getSettings } from "@/server/queries";
+import { getImpactSummary, listImpactByCommunity, getSettings, listProducts } from "@/server/queries";
 import { Section, Breadcrumb, Prose, Rule } from "@/components/ui/layout";
 import { SpecList } from "@/components/ui/spec";
 import { ImpactFlow } from "@/components/story/impact-flow";
+import { ProductRail } from "@/components/story/product-rail";
 import { formatNpr } from "@/lib/money";
 import { copy } from "@/content/copy";
 import { storyCopy, formatSpecDate } from "@/content/story-copy";
@@ -40,10 +41,11 @@ function Count({ label, value }: { label: string; value: number | null }) {
 }
 
 export default async function ImpactPage() {
-  const [summary, byCommunity, settings] = await Promise.all([
+  const [summary, byCommunity, settings, newest] = await Promise.all([
     getImpactSummary(),
     listImpactByCommunity(),
     getSettings<ImpactSettings>("impact"),
+    listProducts({ sort: "newest" }),
   ]);
 
   // Defaulted off. `maker_share_published` is false in `settings` and
@@ -250,6 +252,18 @@ export default async function ImpactPage() {
             </ul>
           </div>
         </div>
+      </Section>
+
+      {/* Plainly navigational, and titled as such. The trade is the argument on
+          this page; the rail is here only so the page is not a leaf. */}
+      <Section tight className="pt-0">
+        <Rule className="mb-12" />
+        <ProductRail
+          eyebrow={copy.shop.title}
+          title="In the shop now"
+          products={newest.slice(0, 3)}
+          action={{ href: "/shop", label: copy.home.viewAll }}
+        />
       </Section>
     </>
   );

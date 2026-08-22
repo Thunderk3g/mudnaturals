@@ -120,11 +120,9 @@ export default async function JournalPostPage({ params }: Params) {
           <div className="grid grid-cols-1 gap-x-16 lg:grid-cols-12">
             <div className="lg:col-span-7 lg:col-start-1">
               <div className="max-w-[65ch] space-y-6 text-[1.0625rem] leading-relaxed text-ink-2">
-                {post.blocks
-                  .filter((block) => block.type === "paragraph" && block.text)
-                  .map((block, i) => (
-                    <p key={i}>{block.text}</p>
-                  ))}
+                {paragraphsOf(post.blocks).map((text, i) => (
+                  <p key={i}>{text}</p>
+                ))}
               </div>
             </div>
           </div>
