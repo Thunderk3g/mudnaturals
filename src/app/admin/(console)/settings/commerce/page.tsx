@@ -16,7 +16,18 @@ function rupees(value: unknown, fallback = 0): number {
 }
 
 export default async function CommercePage() {
-  const [shipping, cod] = await Promise.all([getSettingRaw("shipping"), getSettingRaw("cod")]);
+  const [shipping, cod, payments] = await Promise.all([
+    getSettingRaw("shipping"),
+    getSettingRaw("cod"),
+    getSettingRaw("payments"),
+  ]);
+
+  const enabled = (payments?.enabled ?? {}) as Record<string, boolean>;
+  const gateways = [
+    { key: "pay_esewa", name: "eSewa", on: enabled.esewa !== false, note: "Wallet payments. The most used gateway in Nepal." },
+    { key: "pay_khalti", name: "Khalti", on: enabled.khalti !== false, note: "Wallet, banks and cards through one page." },
+    { key: "pay_fonepay", name: "Fonepay", on: enabled.fonepay !== false, note: "QR and mobile-banking payments across the bank network." },
+  ];
 
   const districts = Array.isArray(shipping?.valley_districts)
     ? (shipping!.valley_districts as string[]).join(", ")
@@ -42,7 +53,7 @@ export default async function CommercePage() {
         size="md"
         className="mt-5"
       >
-        <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        <div className="grid gap-5 lg:grid-cols-2 lg:items-start [&>*:first-child]:lg:row-span-2">
           <Panel title="Delivery charges">
             <div className="space-y-3 px-3 py-3">
               <div>
@@ -100,6 +111,29 @@ export default async function CommercePage() {
             </div>
           </Panel>
 
+          <Panel title="Ways to pay online">
+            <div className="space-y-3 px-3 py-3">
+              {gateways.map((gateway) => (
+                <label key={gateway.key} className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name={gateway.key}
+                    defaultChecked={gateway.on}
+                    className="mt-0.5 h-4 w-4 accent-[#b4552d]"
+                  />
+                  <span>
+                    Offer {gateway.name} at checkout.
+                    <span className="mt-0.5 block text-xs text-ink-2">{gateway.note}</span>
+                  </span>
+                </label>
+              ))}
+              <p className="border-t border-rule pt-3 text-xs leading-relaxed text-ink-2">
+                Turning one off hides it from checkout immediately. Orders already placed through
+                it are unaffected and still confirm as normal.
+              </p>
+            </div>
+          </Panel>
+
           <Panel title="Cash on delivery">
             <div className="space-y-3 px-3 py-3">
               <label className="flex items-start gap-2 text-sm">
@@ -112,8 +146,8 @@ export default async function CommercePage() {
                 <span>
                   Let customers pay when the parcel arrives.
                   <span className="mt-0.5 block text-xs text-ink-2">
-                    Most orders in Nepal are paid this way. Turning it off leaves eSewa as the only
-                    option.
+                    Most orders in Nepal are paid this way. Turning it off leaves online payment as
+                    the only way to pay.
                   </span>
                 </span>
               </label>

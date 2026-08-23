@@ -56,7 +56,7 @@ export default async function OrderPage({ params }: { params: Promise<{ token: s
   const address = order.shipping_address ?? {};
   const waiting = order.status === "pending_payment" || order.status === "payment_verifying";
   const canRetry =
-    order.payment_method === "esewa" && (order.status === "failed" || order.status === "expired");
+    order.payment_method !== "cod" && (order.status === "failed" || order.status === "expired");
   const settled = !waiting && !canRetry && !["cancelled", "refused"].includes(order.status);
 
   return (
@@ -80,7 +80,7 @@ export default async function OrderPage({ params }: { params: Promise<{ token: s
                 value:
                   order.payment_method === "cod"
                     ? checkoutCopy.order.methodCod
-                    : checkoutCopy.order.methodEsewa,
+                    : checkoutCopy.order.methodOnline(order.payment_method),
               },
               {
                 label: copy.order.placed,

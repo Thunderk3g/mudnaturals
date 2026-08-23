@@ -16,6 +16,15 @@ const nextConfig: NextConfig = {
   // `postgres` opens raw TCP sockets; it must never be bundled for the browser.
   serverExternalPackages: ["postgres"],
 
+  experimental: {
+    serverActions: {
+      // Server Actions default to a 1 MB body, which 413'd every phone photo
+      // before uploadMedia's own 15 MB check could run. 16 MB leaves that check
+      // as the one that actually fires, with its human-readable message.
+      bodySizeLimit: "16mb",
+    },
+  },
+
   poweredByHeader: false,
 
   // Prerendering reads from Supabase in Seoul. A build running from anywhere

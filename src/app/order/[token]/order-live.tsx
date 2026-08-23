@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { retryPayment } from "@/app/checkout/actions";
-import { EsewaHandoff } from "@/app/checkout/checkout-form";
+import { GatewayHandoff } from "@/app/checkout/checkout-form";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/content/copy";
-import { checkoutCopy, type EsewaHandoffPayload } from "@/content/checkout-copy";
+import { checkoutCopy, type PaymentHandoff } from "@/content/checkout-copy";
 
 /**
  * The two pieces of the order page that have to run in the browser: the poll
@@ -40,11 +40,11 @@ export function OrderPoll() {
 }
 
 export function RetryPayment({ token }: { token: string }) {
-  const [payment, setPayment] = useState<EsewaHandoffPayload | null>(null);
+  const [payment, setPayment] = useState<PaymentHandoff | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (payment) return <EsewaHandoff payment={payment} />;
+  if (payment) return <GatewayHandoff payment={payment} />;
 
   async function retry() {
     setPending(true);

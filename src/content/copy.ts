@@ -158,6 +158,8 @@ export const copy = {
     recipientName: "Recipient's name",
     recipientPhone: "Recipient's phone",
     payWithEsewa: "Pay with eSewa",
+    payWithKhalti: "Pay with Khalti",
+    payWithFonepay: "Pay with Fonepay",
     payWithCod: "Cash on delivery",
     codNote: "We will call to confirm before dispatch.",
     codUnavailable: "Cash on delivery is not available for this order.",

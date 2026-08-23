@@ -10,32 +10,75 @@ import {
   verifyEsewaCallback,
   type EsewaStatusResult,
 } from "@/lib/esewa";
+import {
+  fetchKhaltiStatus,
+  initiateKhalti,
+  resolveKhaltiEnv,
+} from "@/lib/khalti";
+import {
+  buildFonepayRequestUrl,
+  fetchFonepayVerification,
+  fonepayCallbackDvMatches,
+  fonepayPrnFromAttemptId,
+  readFonepayCallback,
+  resolveFonepayEnv,
+} from "@/lib/fonepay";
 
 /**
- * The DB-facing half of the eSewa integration.
+ * The DB-facing half of every online gateway: eSewa, Khalti, Fonepay.
  *
- * Everything that moves money goes through `confirm_payment` /
- * `fail_payment_attempt` in migration 009: they take the row lock, assert the
- * amount against the snapshot frozen at initiation, and write the audit event.
- * Nothing here hand-rolls those UPDATEs.
+ * One pipeline. An attempt is opened with the amount frozen; each gateway
+ * answers a status question in its own dialect; `@/lib/{esewa,khalti,fonepay}`
+ * translate the dialects into one status vocabulary; and `applyDecision` is
+ * the single place any status becomes a state change. Everything that moves
+ * money still goes through `confirm_payment` / `fail_payment_attempt` in
+ * migration 009: they take the row lock, assert the amount against the frozen
+ * snapshot, and write the audit event. Nothing here hand-rolls those UPDATEs.
  *
- * The secret key is read only in this module and in `@/lib/esewa`, both of
- * which are server-only. It never reaches the browser, and no log line in this
- * file prints a key or a signature.
+ * Secret keys are read only in this module and the three lib modules, all
+ * server-only. No log line in this file prints a key or a signature.
  */
+
+export type Gateway = "esewa" | "khalti" | "fonepay";
+
+/** The online methods checkout can offer. COD is not a gateway. */
+export const GATEWAYS: Gateway[] = ["esewa", "khalti", "fonepay"];
+
+function siteUrl(): string {
+  const value = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!value) throw new Error("NEXT_PUBLIC_SITE_URL is not set");
+  return value.replace(/\/+$/, "");
+}
 
 function config() {
   const secretKey = process.env.ESEWA_SECRET_KEY;
   const productCode = process.env.ESEWA_PRODUCT_CODE;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (!secretKey) throw new Error("ESEWA_SECRET_KEY is not set");
   if (!productCode) throw new Error("ESEWA_PRODUCT_CODE is not set");
-  if (!siteUrl) throw new Error("NEXT_PUBLIC_SITE_URL is not set");
   return {
     secretKey,
     productCode,
-    siteUrl: siteUrl.replace(/\/+$/, ""),
+    siteUrl: siteUrl(),
     env: resolveEsewaEnv(process.env.ESEWA_ENV),
+  };
+}
+
+function khaltiConfig() {
+  const secretKey = process.env.KHALTI_SECRET_KEY;
+  if (!secretKey) throw new Error("KHALTI_SECRET_KEY is not set");
+  return { secretKey, siteUrl: siteUrl(), env: resolveKhaltiEnv(process.env.KHALTI_ENV) };
+}
+
+function fonepayConfig() {
+  const merchantCode = process.env.FONEPAY_PID;
+  const secretKey = process.env.FONEPAY_SECRET_KEY;
+  if (!merchantCode) throw new Error("FONEPAY_PID is not set");
+  if (!secretKey) throw new Error("FONEPAY_SECRET_KEY is not set");
+  return {
+    merchantCode,
+    secretKey,
+    siteUrl: siteUrl(),
+    env: resolveFonepayEnv(process.env.FONEPAY_ENV),
   };
 }
 
@@ -61,37 +104,73 @@ export type EsewaInitiation = {
  * `expired` order goes back through `place_order`, which is what re-reserves the
  * stock that failing the attempt released.
  */
-export async function initiateEsewaPayment(orderId: string): Promise<EsewaInitiation> {
-  const cfg = config();
-
-  const attempt = await withTx(async (tx) => {
+/**
+ * Opens the attempt row every gateway shares: order locked, method checked,
+ * amount frozen, audit event written. A new attempt on every call — retries
+ * need a fresh gateway reference, and the partial unique index allows at most
+ * one `succeeded` attempt per order, so racing attempts cannot double-ship.
+ */
+async function openAttempt(
+  orderId: string,
+  gateway: Gateway,
+  productCode: string,
+  env: string,
+): Promise<{
+  id: string;
+  amount_paisa: number;
+  phone: string;
+  full_name: string | null;
+  email: string | null;
+}> {
+  return withTx(async (tx) => {
     const [order] = await tx<
-      { id: string; status: string; payment_method: string; total_paisa: number }[]
+      {
+        id: string;
+        status: string;
+        payment_method: string;
+        total_paisa: number;
+        phone: string;
+        email: string | null;
+        full_name: string | null;
+      }[]
     >`
-      select id, status, payment_method, total_paisa
-        from orders where id = ${orderId} for update`;
+      select o.id, o.status, o.payment_method, o.total_paisa, o.phone, o.email,
+             c.full_name
+        from orders o left join customers c on c.id = o.customer_id
+       where o.id = ${orderId} for update of o`;
 
     if (!order) throw new Error(`order ${orderId} not found`);
-    if (order.payment_method !== "esewa") {
-      throw new Error(`order ${orderId} is not an eSewa order`);
+    if (order.payment_method !== gateway) {
+      throw new Error(`order ${orderId} is not a ${gateway} order`);
     }
     if (order.status !== "pending_payment") {
       throw new Error(`order ${orderId} is not awaiting payment (status ${order.status})`);
     }
 
     const [row] = await tx<{ id: string; amount_paisa: number }[]>`
-      insert into payment_attempts (order_id, amount_paisa, product_code)
-      values (${orderId}, ${order.total_paisa}, ${cfg.productCode})
+      insert into payment_attempts (order_id, amount_paisa, product_code, gateway)
+      values (${orderId}, ${order.total_paisa}, ${productCode}, ${gateway})
       returning id, amount_paisa`;
     if (!row) throw new Error(`could not open a payment attempt for order ${orderId}`);
 
     await tx`
       insert into payment_events (attempt_id, order_id, source, event, raw_payload)
       values (${row.id}, ${orderId}, 'initiate', 'attempt_created',
-              ${sql.json({ amount_paisa: row.amount_paisa, env: cfg.env })})`;
+              ${sql.json({ amount_paisa: row.amount_paisa, gateway, env })})`;
 
-    return row;
+    return {
+      id: row.id,
+      amount_paisa: row.amount_paisa,
+      phone: order.phone,
+      full_name: order.full_name,
+      email: order.email,
+    };
   });
+}
+
+export async function initiateEsewaPayment(orderId: string): Promise<EsewaInitiation> {
+  const cfg = config();
+  const attempt = await openAttempt(orderId, "esewa", cfg.productCode, cfg.env);
 
   const { formAction, fields } = buildEsewaForm({
     transactionUuid: attempt.id,
@@ -108,6 +187,78 @@ export async function initiateEsewaPayment(orderId: string): Promise<EsewaInitia
   return { attemptId: attempt.id, formAction, fields };
 }
 
+export type RedirectInitiation = { attemptId: string; url: string };
+
+/**
+ * Khalti: server-to-server initiate, then hand the browser the hosted URL.
+ * The returned `pidx` is stored on the attempt — it is the only key the lookup
+ * API takes, so it is what makes the attempt reconcilable without a browser.
+ */
+export async function initiateKhaltiPayment(orderId: string): Promise<RedirectInitiation> {
+  const cfg = khaltiConfig();
+  const attempt = await openAttempt(orderId, "khalti", "KHALTI", cfg.env);
+
+  let initiation;
+  try {
+    initiation = await initiateKhalti({
+      env: cfg.env,
+      secretKey: cfg.secretKey,
+      request: {
+        amountPaisa: attempt.amount_paisa,
+        purchaseOrderId: attempt.id,
+        purchaseOrderName: "MUD Naturals order",
+        returnUrl: `${cfg.siteUrl}/api/khalti/return?attempt=${attempt.id}`,
+        websiteUrl: cfg.siteUrl,
+        customer: {
+          name: attempt.full_name ?? undefined,
+          phone: attempt.phone,
+          email: attempt.email ?? undefined,
+        },
+      },
+    });
+  } catch (error) {
+    // The attempt exists but Khalti never issued a link; nothing can ever
+    // complete it. Fail it now so the reservation releases immediately.
+    await failAttempt(attempt.id, "failed", "initiate");
+    throw error;
+  }
+
+  await sql`
+    update payment_attempts
+       set khalti_pidx = ${initiation.pidx},
+           expires_at = coalesce(${initiation.expiresAt}::timestamptz, expires_at)
+     where id = ${attempt.id}`;
+
+  return { attemptId: attempt.id, url: initiation.paymentUrl };
+}
+
+/**
+ * Fonepay: no server call at all — the signed redirect URL is the initiation.
+ * The PRN (a 24-char slice of the attempt id, stored for the reverse lookup)
+ * is how the callback finds its way back to the attempt.
+ */
+export async function initiateFonepayPayment(orderId: string): Promise<RedirectInitiation> {
+  const cfg = fonepayConfig();
+  const attempt = await openAttempt(orderId, "fonepay", cfg.merchantCode, cfg.env);
+  const prn = fonepayPrnFromAttemptId(attempt.id);
+
+  await sql`update payment_attempts set fonepay_prn = ${prn} where id = ${attempt.id}`;
+
+  const url = buildFonepayRequestUrl({
+    env: cfg.env,
+    merchantCode: cfg.merchantCode,
+    secretKey: cfg.secretKey,
+    prn,
+    amountPaisa: attempt.amount_paisa,
+    remark: "MUD Naturals order",
+    // No attempt hint on the RU: Fonepay appends its own query parameters and
+    // the PRN it echoes back is already our reverse index.
+    returnUrl: `${cfg.siteUrl}/api/fonepay/return`,
+  });
+
+  return { attemptId: attempt.id, url };
+}
+
 // ------------------------------------------------------ shared plumbing ----
 
 type AttemptRow = {
@@ -116,6 +267,11 @@ type AttemptRow = {
   amount_paisa: number;
   product_code: string;
   status: string;
+  gateway: Gateway;
+  khalti_pidx: string | null;
+  fonepay_prn: string | null;
+  fonepay_uid: string | null;
+  fonepay_bid: string | null;
   order_status: string;
   lookup_token: string;
   past_expiry: boolean;
@@ -124,10 +280,78 @@ type AttemptRow = {
 
 const ATTEMPT_FIELDS = sql`
   a.id, a.order_id, a.amount_paisa, a.product_code, a.status,
+  a.gateway, a.khalti_pidx, a.fonepay_prn, a.fonepay_uid, a.fonepay_bid,
   o.status as order_status, o.lookup_token,
   (a.expires_at < now()) as past_expiry,
   (a.expires_at < now() - interval '24 hours') as abandoned
 `;
+
+/**
+ * One question, three dialects: "what happened to this attempt?".
+ *
+ * Every answer arrives in the same shared vocabulary, so `applyDecision` and
+ * both crons never know which gateway they are talking about. The two
+ * NOT_FOUND fabrications are deliberate: an attempt whose gateway reference
+ * never got stored can never complete, and NOT_FOUND is exactly the status
+ * whose decision waits inside the window and expires after it.
+ */
+async function fetchGatewayStatus(attempt: AttemptRow): Promise<EsewaStatusResult> {
+  switch (attempt.gateway) {
+    case "khalti": {
+      if (!attempt.khalti_pidx) {
+        return {
+          status: "NOT_FOUND",
+          rawStatus: "NO_PIDX",
+          amountPaisa: null,
+          refId: null,
+          transactionCode: null,
+          body: { reason: "attempt has no pidx stored" },
+        };
+      }
+      const cfg = khaltiConfig();
+      return fetchKhaltiStatus({ env: cfg.env, secretKey: cfg.secretKey, pidx: attempt.khalti_pidx });
+    }
+    case "fonepay": {
+      // Verification needs the UID/BID pair that only the browser callback
+      // carries. Without them there is nothing to ask Fonepay — the attempt
+      // waits out its window and expires, exactly like an eSewa attempt the
+      // gateway has no record of.
+      if (!attempt.fonepay_uid || !attempt.fonepay_prn) {
+        return {
+          status: "NOT_FOUND",
+          rawStatus: "NO_UID",
+          amountPaisa: null,
+          refId: null,
+          transactionCode: null,
+          body: { reason: "no callback ever arrived; fonepay offers no cold lookup" },
+        };
+      }
+      const cfg = fonepayConfig();
+      return fetchFonepayVerification({
+        env: cfg.env,
+        merchantCode: cfg.merchantCode,
+        secretKey: cfg.secretKey,
+        prn: attempt.fonepay_prn,
+        amountPaisa: attempt.amount_paisa,
+        bid: attempt.fonepay_bid ?? "",
+        uid: attempt.fonepay_uid,
+        // Re-polls happen because the callback said "paid" but something later
+        // failed; treating an unverified re-poll as ambiguous keeps it parked
+        // for a human instead of silently failing a paid order.
+        callbackPs: true,
+      });
+    }
+    default: {
+      const cfg = config();
+      return fetchEsewaStatus({
+        env: cfg.env,
+        productCode: attempt.product_code,
+        transactionUuid: attempt.id,
+        amountPaisa: attempt.amount_paisa,
+      });
+    }
+  }
+}
 
 async function loadAttempt(attemptId: string): Promise<AttemptRow | undefined> {
   const [row] = await sql<AttemptRow[]>`
@@ -375,12 +599,7 @@ async function handleCallback(
 
   let result: EsewaStatusResult;
   try {
-    result = await fetchEsewaStatus({
-      env: cfg.env,
-      productCode: attempt.product_code,
-      transactionUuid: attempt.id,
-      amountPaisa: attempt.amount_paisa,
-    });
+    result = await fetchGatewayStatus(attempt);
   } catch (error) {
     console.error("[esewa] status check failed on callback", {
       source,
@@ -410,6 +629,149 @@ export function handleEsewaReturn(input: { data: string | null; urlHint: string 
 /** Failure redirect. Undocumented payload, so `data` may be absent or empty. */
 export function handleEsewaFailure(input: { data: string | null; urlHint: string | null }) {
   return handleCallback(input, "return_failure");
+}
+
+/**
+ * Khalti return. The query's `status` is advisory; the lookup by stored pidx
+ * is what decides. The attempt is found by our own `?attempt=` hint first and
+ * the echoed pidx second, so a mangled query still resolves.
+ */
+export async function handleKhaltiReturn(params: URLSearchParams): Promise<CallbackResult> {
+  const home = `${siteUrl()}/`;
+  const payload = Object.fromEntries(params.entries());
+
+  let attempt: AttemptRow | undefined;
+  const hinted = attemptIdFromUrl(params.get("attempt") ?? "");
+  if (hinted) attempt = await loadAttempt(hinted);
+  if (!attempt) {
+    const pidx = params.get("pidx");
+    if (pidx) {
+      const [row] = await sql<AttemptRow[]>`
+        select ${ATTEMPT_FIELDS}
+          from payment_attempts a join orders o on o.id = a.order_id
+         where a.khalti_pidx = ${pidx}`;
+      attempt = row;
+    }
+  }
+  if (!attempt) {
+    console.error("[khalti] return carried no identifiable attempt");
+    return { redirectTo: home, outcome: "error" };
+  }
+
+  const orderPage = `${siteUrl()}/order/${attempt.lookup_token}`;
+  const claimedCanceled = params.get("status") === "User canceled";
+
+  await recordEvent(attempt, claimedCanceled ? "return_failure" : "return_success",
+    "callback_received", payload);
+  await markVerifying(attempt.order_id);
+
+  let result: EsewaStatusResult;
+  try {
+    result = await fetchGatewayStatus(attempt);
+  } catch (error) {
+    console.error("[khalti] lookup failed on return", {
+      attemptId: attempt.id,
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    await recordEvent(attempt, "return_success", "status_check_failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    return { redirectTo: orderPage, outcome: "error" };
+  }
+
+  await recordPoll(attempt.id, result.rawStatus);
+  await recordEvent(attempt, "return_success", `status_${result.status.toLowerCase()}`, result.body);
+
+  // A canceled redirect whose lookup finds nothing better is failed now, so
+  // the reservation releases while the customer is still looking at the cart.
+  const outcome = await applyDecision(attempt, result, "return_success", {
+    failOnWait: claimedCanceled,
+  });
+  return { redirectTo: orderPage, outcome };
+}
+
+/**
+ * Fonepay return — the one callback that must not be missed, because the
+ * verification API only answers with the UID/BID this redirect carries. They
+ * are stored before anything can fail, so a crash mid-handler still leaves the
+ * cron able to verify.
+ */
+export async function handleFonepayReturn(params: URLSearchParams): Promise<CallbackResult> {
+  const cfg = fonepayConfig();
+  const home = `${cfg.siteUrl}/`;
+  const callback = readFonepayCallback(params);
+
+  if (!callback.prn) {
+    console.error("[fonepay] return carried no PRN");
+    return { redirectTo: home, outcome: "error" };
+  }
+
+  const [attempt] = await sql<AttemptRow[]>`
+    select ${ATTEMPT_FIELDS}
+      from payment_attempts a join orders o on o.id = a.order_id
+     where a.fonepay_prn = ${callback.prn}`;
+  if (!attempt) {
+    console.error("[fonepay] return for unknown PRN");
+    return { redirectTo: home, outcome: "error" };
+  }
+
+  const orderPage = `${cfg.siteUrl}/order/${attempt.lookup_token}`;
+  const source = callback.ps ? "return_success" : "return_failure";
+  const dvMatches = fonepayCallbackDvMatches(cfg.secretKey, callback);
+
+  // UID/BID first, then the audit row, then anything that can fail.
+  if (callback.uid) {
+    await sql`
+      update payment_attempts
+         set fonepay_uid = coalesce(fonepay_uid, ${callback.uid}),
+             fonepay_bid = coalesce(fonepay_bid, ${callback.bid})
+       where id = ${attempt.id}`;
+    attempt.fonepay_uid = attempt.fonepay_uid ?? callback.uid;
+    attempt.fonepay_bid = attempt.fonepay_bid ?? callback.bid;
+  }
+  await recordEvent(attempt, source, "callback_received", callback.raw, dvMatches);
+  await markVerifying(attempt.order_id);
+
+  // No UID at all: Fonepay is telling us nothing verifiable. PS=false with no
+  // UID is a plain abandonment — fail it now. PS=true with no UID would be a
+  // paid customer we cannot verify — park it for a human.
+  if (!callback.uid) {
+    if (callback.ps) {
+      await markAmbiguous(attempt, source);
+      return { redirectTo: orderPage, outcome: "ambiguous" };
+    }
+    await failAttempt(attempt.id, "failed", source);
+    return { redirectTo: orderPage, outcome: "failed" };
+  }
+
+  let result: EsewaStatusResult;
+  try {
+    result = await fetchFonepayVerification({
+      env: cfg.env,
+      merchantCode: cfg.merchantCode,
+      secretKey: cfg.secretKey,
+      prn: callback.prn,
+      amountPaisa: attempt.amount_paisa,
+      bid: callback.bid ?? "",
+      uid: callback.uid,
+      callbackPs: callback.ps,
+    });
+  } catch (error) {
+    console.error("[fonepay] verification failed on return", {
+      attemptId: attempt.id,
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    await recordEvent(attempt, source, "status_check_failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    return { redirectTo: orderPage, outcome: "error" };
+  }
+
+  await recordPoll(attempt.id, result.rawStatus);
+  await recordEvent(attempt, source, `status_${result.status.toLowerCase()}`, result.body);
+
+  const outcome = await applyDecision(attempt, result, source);
+  return { redirectTo: orderPage, outcome };
 }
 
 // ---------------------------------------------------------------- crons ----
@@ -452,16 +814,11 @@ async function pollAttempts(
   for (const attempt of attempts) {
     let result: EsewaStatusResult;
     try {
-      result = await fetchEsewaStatus({
-        env: config().env,
-        productCode: attempt.product_code,
-        transactionUuid: attempt.id,
-        amountPaisa: attempt.amount_paisa,
-      });
+      result = await fetchGatewayStatus(attempt);
     } catch (error) {
       // A gateway that will not answer is never a reason to fail a customer.
       // Bump the counter so backoff widens, and try again next run.
-      console.error("[esewa] status poll failed", {
+      console.error(`[${attempt.gateway}] status poll failed`, {
         attemptId: attempt.id,
         reason: error instanceof Error ? error.message : "unknown",
       });

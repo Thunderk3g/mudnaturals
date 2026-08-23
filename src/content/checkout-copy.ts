@@ -47,14 +47,16 @@ export const checkoutCopy = {
     couponHelp: "Any discount is calculated when the order is placed.",
     methodHeading: "How you would like to pay",
     esewaNote: "You will finish on eSewa and come straight back.",
+    khaltiNote: "You will finish on Khalti and come straight back.",
+    fonepayNote: "Pay by QR or your bank through Fonepay, then come straight back.",
     codCeiling: (max: string) => `Cash on delivery is available up to ${max}. This order is above that, so pay with eSewa.`,
     codClosed: "Cash on delivery is closed right now.",
     totalDue: "Total due",
     deliveryTo: (district: string) => `Delivery to ${district}`,
     placingBody: "Taking you to your order…",
-    redirectingToEsewa: "Opening eSewa…",
+    redirectingTo: (gateway: string) => `Opening ${gateway}…`,
     redirectingNote: "If nothing happens in a few seconds, use the button below.",
-    continueManually: "Continue to eSewa",
+    continueManually: (gateway: string) => `Continue to ${gateway}`,
     emptyTitle: "Nothing to check out",
     accountNote: "An account is not needed to order. If you want one later, we can attach it to this phone number.",
     errors: {
@@ -78,7 +80,8 @@ export const checkoutCopy = {
     addressHeading: "Delivering to",
     totalsHeading: "Totals",
     paymentMethod: "Payment",
-    methodEsewa: "eSewa",
+    methodOnline: (method: string) =>
+      method === "khalti" ? "Khalti" : method === "fonepay" ? "Fonepay" : "eSewa",
     methodCod: "Cash on delivery",
     stillWaiting: "Still confirming. This page checks again every few seconds.",
     pollStopped: "Still with eSewa. We will message you the moment it clears — nothing more is needed from you.",
@@ -182,25 +185,30 @@ export type PlaceOrderInput = {
   email: string;
   fullName: string;
   address: Address;
-  paymentMethod: "esewa" | "cod";
+  paymentMethod: OnlineMethod | "cod";
   couponCode: string;
   gift: { note: string; recipientName: string; recipientPhone: string } | null;
   idempotencyKey: string;
 };
 
-/** What `initiateEsewaPayment(orderId)` hands back for the auto-posting form. */
-export type EsewaHandoffPayload = {
-  attemptId: string;
-  formAction: string;
-  fields: Record<string, string>;
-};
+export type OnlineMethod = "esewa" | "khalti" | "fonepay";
+
+/**
+ * How the browser is handed to a gateway. eSewa wants an auto-submitted form
+ * POST with signed hidden fields; Khalti and Fonepay are plain redirects to a
+ * URL the server built. One union, so checkout and the order-page retry render
+ * both the same way.
+ */
+export type PaymentHandoff =
+  | { kind: "form"; gateway: "esewa"; attemptId: string; formAction: string; fields: Record<string, string> }
+  | { kind: "redirect"; gateway: "khalti" | "fonepay"; attemptId: string; url: string };
 
 export type PlaceOrderResult =
-  | { ok: true; token: string; orderNumber: string; payment: EsewaHandoffPayload | null }
+  | { ok: true; token: string; orderNumber: string; payment: PaymentHandoff | null }
   | { ok: false; error: string };
 
 export type RetryPaymentResult =
-  | { ok: true; payment: EsewaHandoffPayload }
+  | { ok: true; payment: PaymentHandoff }
   | { ok: false; error: string };
 
 /** Exactly the object `get_order_by_token` builds. */
@@ -208,7 +216,7 @@ export type OrderView = {
   order_number: string;
   status: string;
   payment_status: string;
-  payment_method: "esewa" | "cod";
+  payment_method: OnlineMethod | "cod";
   total_paisa: number;
   subtotal_paisa: number;
   shipping_paisa: number;

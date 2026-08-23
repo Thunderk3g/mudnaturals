@@ -10,6 +10,7 @@ import {
   useCartView,
 } from "@/components/cart/cart-lines";
 import { LinkButton } from "@/components/ui/button";
+import { Loom } from "@/components/loaders";
 import { formatNpr } from "@/lib/money";
 import { copy } from "@/content/copy";
 import { checkoutCopy } from "@/content/checkout-copy";
@@ -90,7 +91,9 @@ export function MiniCart() {
               </Link>
             </div>
           ) : !view ? (
-            <p className="spec py-10">{loading ? checkoutCopy.cart.loading : copy.a11y.loading}</p>
+            <div className="py-10">
+              <Loom size="sm" label={loading ? checkoutCopy.cart.loading : copy.a11y.loading} />
+            </div>
           ) : (
             <>
               <p className="sr-only">

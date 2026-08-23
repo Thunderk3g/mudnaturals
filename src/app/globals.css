@@ -298,3 +298,128 @@
     border-radius: 0.25rem;
   }
 }
+
+@layer components {
+  /* ------------------------------------------------- looms and skeletons --
+     The wait states. The loader is a loom (src/components/loaders.tsx): warp
+     threads lift in sequence while a clay weft draws through, rests, and draws
+     again. Skeletons are not-yet paper with one slow light sweep. Everything
+     here dies under the global prefers-reduced-motion block above. */
+
+  .loom-weft {
+    stroke-dasharray: 90;
+    stroke-dashoffset: 90;
+    animation: loom-draw 1.8s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  }
+
+  @keyframes loom-draw {
+    0%   { stroke-dashoffset: 90; opacity: 1; }
+    62%  { stroke-dashoffset: 0;  opacity: 1; }
+    82%  { stroke-dashoffset: 0;  opacity: 0; }
+    83%  { stroke-dashoffset: 90; opacity: 0; }
+    100% { stroke-dashoffset: 90; opacity: 1; }
+  }
+
+  .loom-warp {
+    animation: loom-lift 1.8s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  @keyframes loom-lift {
+    0%, 100% { transform: translateY(0); opacity: 0.55; }
+    30%      { transform: translateY(-1.5px); opacity: 1; }
+    60%      { transform: translateY(0); opacity: 0.55; }
+  }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--color-paper-deep);
+  }
+
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--color-surface) 65%, transparent),
+      transparent
+    );
+    animation: skeleton-sweep 1.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes skeleton-sweep {
+    to { transform: translateX(100%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after { animation: none; opacity: 0; }
+  }
+}
+
+@layer components {
+  /* ------------------------------------------------------- the weft bar --
+     Navigation in flight (src/components/nav-progress.tsx). The same gesture
+     as the loom's weft, flattened to the top edge of the viewport: one clay
+     thread drawn across a paper-deep warp. 2px, no shadow, above the masthead
+     (z-50) and the overlays (z-50) because it outranks both while it shows. */
+
+  .weft-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    height: 2px;
+    overflow: hidden;
+    background: var(--color-paper-deep);
+    pointer-events: none;
+  }
+
+  .weft-bar::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 38%;
+    background: var(--color-clay);
+    animation: weft-draw 1.15s var(--ease-paper) infinite;
+  }
+
+  @keyframes weft-draw {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(365%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* The global block already collapses the duration, which would park the
+       thread off the right edge. Drop the motion entirely and leave a plain
+       hairline that simply says "working". */
+    .weft-bar::after {
+      animation: none;
+      width: 100%;
+      opacity: 0.45;
+    }
+  }
+
+  /* ------------------------------------------------------ photograph fade --
+     Photographs arrive rather than snapping in. `.img-zoom` already carries an
+     opacity transition for the hover cross-fade, so this is only the missing
+     starting value: unsupported browsers ignore the block and paint the image
+     fully visible, which is the correct fallback. Pure CSS — no onLoad, no
+     client boundary on the card, no second render.
+
+     The plates behind these images are `bg-paper-deep`, so the fade is out of
+     paper rather than out of nothing. Utilities outrank the components layer,
+     so a hover frame's `opacity-0` still wins and never fades itself in. */
+  @starting-style {
+    .img-zoom {
+      opacity: 0;
+    }
+  }
+}

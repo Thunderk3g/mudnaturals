@@ -330,6 +330,17 @@ export async function saveCommerceSettingsAction(_prev: ActionState, fd: FormDat
       max_refusals_before_block: integer(fd, "cod_refusals", 2),
     });
 
+    // Which online tills are open. COD's own switch lives above; this row is
+    // what checkout reads to decide which methods to offer at all.
+    await cms.saveSetting("payments", {
+      enabled: {
+        esewa: flag(fd, "pay_esewa"),
+        khalti: flag(fd, "pay_khalti"),
+        fonepay: flag(fd, "pay_fonepay"),
+        cod: flag(fd, "cod_enabled"),
+      },
+    });
+
     publish();
     return "Saved. New orders use these rules immediately.";
   });

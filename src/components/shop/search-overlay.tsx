@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Loom } from "@/components/loaders";
 import { copy } from "@/content/copy";
 import { shopCopy } from "@/content/shop-copy";
 
@@ -22,9 +23,14 @@ export function SearchOverlay({
   defaultValue?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // The form is a real GET to /search, so submitting is a document navigation
+  // and this overlay keeps painting until the new page arrives. Without a mark
+  // of some kind that reads as a dead click on a slow connection.
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setSubmitting(false);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -58,6 +64,7 @@ export function SearchOverlay({
           method="get"
           action="/search"
           role="search"
+          onSubmit={() => setSubmitting(true)}
           className="mt-6 flex items-center gap-4 border-b border-rule-strong pb-3"
         >
           <label htmlFor="overlay-q" className="sr-only">
@@ -73,9 +80,15 @@ export function SearchOverlay({
             autoComplete="off"
             className="w-full min-w-0 bg-transparent py-2 text-xl text-ink placeholder:text-ink-3 focus:outline-none lg:text-3xl"
           />
-          <button type="submit" className="spec shrink-0 text-ink hover:text-clay">
-            {shopCopy.searchSubmit}
-          </button>
+          {submitting ? (
+            <span className="shrink-0">
+              <Loom size="sm" label={shopCopy.loading} />
+            </span>
+          ) : (
+            <button type="submit" className="spec shrink-0 text-ink hover:text-clay">
+              {shopCopy.searchSubmit}
+            </button>
+          )}
         </form>
 
         <p className="mt-4 spec">{shopCopy.searchPrompt}</p>

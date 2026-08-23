@@ -12,6 +12,7 @@ import { placeOrder } from "@/app/checkout/actions";
 import { Button, LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/layout";
 import { Price } from "@/components/ui/spec";
+import { Loom } from "@/components/loaders";
 import { formatNpr } from "@/lib/money";
 import { copy } from "@/content/copy";
 import {
@@ -23,7 +24,8 @@ import {
   PROVINCES,
   shippingFor,
   type CodSettings,
-  type EsewaHandoffPayload,
+  type OnlineMethod,
+  type PaymentHandoff,
   type ShippingSettings,
 } from "@/content/checkout-copy";
 
@@ -205,26 +207,50 @@ function Step({
   );
 }
 
-/** Auto-posting handoff to eSewa. Also used by the retry on the order page. */
-export function EsewaHandoff({ payment }: { payment: EsewaHandoffPayload }) {
+export const GATEWAY_NAMES: Record<OnlineMethod, string> = {
+  esewa: "eSewa",
+  khalti: "Khalti",
+  fonepay: "Fonepay",
+};
+
+/**
+ * Hands the browser to a gateway. eSewa is an auto-submitted signed form POST;
+ * Khalti and Fonepay are plain redirects. Both keep a manual button underneath,
+ * because an auto-navigation that silently fails leaves a paid-up customer
+ * staring at a blank card. Also used by the retry on the order page.
+ */
+export function GatewayHandoff({ payment }: { payment: PaymentHandoff }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const name = GATEWAY_NAMES[payment.gateway];
 
   useEffect(() => {
-    formRef.current?.submit();
-  }, []);
+    if (payment.kind === "form") formRef.current?.submit();
+    else window.location.assign(payment.url);
+  }, [payment]);
 
   return (
     <div className="rise border border-rule-strong bg-surface p-8 text-center">
-      <p className="spec">{checkoutCopy.checkout.redirectingToEsewa}</p>
+      <div className="flex justify-center">
+        <Loom size="lg" />
+      </div>
+      <p className="spec mt-5">{checkoutCopy.checkout.redirectingTo(name)}</p>
       <p className="mt-3 text-ink-2">{checkoutCopy.checkout.redirectingNote}</p>
-      <form ref={formRef} action={payment.formAction} method="POST" className="mt-6">
-        {Object.entries(payment.fields).map(([name, value]) => (
-          <input key={name} type="hidden" name={name} value={value} />
-        ))}
-        <Button type="submit" size="lg">
-          {checkoutCopy.checkout.continueManually}
-        </Button>
-      </form>
+      {payment.kind === "form" ? (
+        <form ref={formRef} action={payment.formAction} method="POST" className="mt-6">
+          {Object.entries(payment.fields).map(([fieldName, value]) => (
+            <input key={fieldName} type="hidden" name={fieldName} value={value} />
+          ))}
+          <Button type="submit" size="lg">
+            {checkoutCopy.checkout.continueManually(name)}
+          </Button>
+        </form>
+      ) : (
+        <div className="mt-6">
+          <Button type="button" size="lg" onClick={() => window.location.assign(payment.url)}>
+            {checkoutCopy.checkout.continueManually(name)}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -234,9 +260,12 @@ export function EsewaHandoff({ payment }: { payment: EsewaHandoffPayload }) {
 export function CheckoutForm({
   shipping,
   cod,
+  onlineMethods,
 }: {
   shipping: ShippingSettings;
   cod: CodSettings;
+  /** In display order. The console's payments toggles decide what is in it. */
+  onlineMethods: OnlineMethod[];
 }) {
   const router = useRouter();
   const { items, count, mounted, clear } = useCart();
@@ -246,13 +275,13 @@ export function CheckoutForm({
   const [values, setValues] = useState<Values>(EMPTY);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [isGift, setIsGift] = useState(false);
-  const [method, setMethod] = useState<"esewa" | "cod">("esewa");
+  const [method, setMethod] = useState<OnlineMethod | "cod">(onlineMethods[0] ?? "cod");
   const [step, setStep] = useState(0);
   const [reached, setReached] = useState(0);
   const [pending, setPending] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [payment, setPayment] = useState<EsewaHandoffPayload | null>(null);
+  const [payment, setPayment] = useState<PaymentHandoff | null>(null);
   const [idempotencyKey] = useState(newIdempotencyKey);
 
   const panelRef = useRef<HTMLFormElement>(null);
@@ -267,8 +296,8 @@ export function CheckoutForm({
 
   // A district change can push the total over the COD ceiling mid-flow.
   useEffect(() => {
-    if (method === "cod" && !codAvailable) setMethod("esewa");
-  }, [method, codAvailable]);
+    if (method === "cod" && !codAvailable) setMethod(onlineMethods[0] ?? "cod");
+  }, [method, codAvailable, onlineMethods]);
 
   // Opening a section moves focus into it rather than leaving it behind. Not on
   // first paint: nobody wants a mobile keyboard thrown at them on arrival.
@@ -370,12 +399,15 @@ export function CheckoutForm({
     else router.push(`/order/${result.token}`);
   }
 
-  if (payment) return <EsewaHandoff payment={payment} />;
+  if (payment) return <GatewayHandoff payment={payment} />;
 
   if (leaving) {
     return (
       <div className="border border-rule-strong bg-surface p-10 text-center">
-        <p className="spec">{copy.checkout.placing}</p>
+        <div className="flex justify-center">
+          <Loom size="lg" />
+        </div>
+        <p className="spec mt-5">{copy.checkout.placing}</p>
         <p className="mt-3 text-ink-2">{checkoutCopy.checkout.placingBody}</p>
       </div>
     );
@@ -700,22 +732,37 @@ export function CheckoutForm({
               <legend className="spec text-ink">{checkoutCopy.checkout.methodHeading}</legend>
 
               <div className="mt-4 grid gap-3">
-                <label className="flex cursor-pointer items-start gap-3 border border-rule p-4 has-[:checked]:border-clay has-[:checked]:bg-clay-soft/40">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="esewa"
-                    checked={method === "esewa"}
-                    onChange={() => setMethod("esewa")}
-                    className="mt-1 h-4 w-4 accent-[#b4552d]"
-                  />
-                  <span>
-                    <span className="block">{copy.checkout.payWithEsewa}</span>
-                    <span className="spec mt-1 block normal-case tracking-normal">
-                      {checkoutCopy.checkout.esewaNote}
+                {onlineMethods.map((online) => (
+                  <label
+                    key={online}
+                    className="flex cursor-pointer items-start gap-3 border border-rule p-4 has-[:checked]:border-clay has-[:checked]:bg-clay-soft/40"
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={online}
+                      checked={method === online}
+                      onChange={() => setMethod(online)}
+                      className="mt-1 h-4 w-4 accent-[#b4552d]"
+                    />
+                    <span>
+                      <span className="block">
+                        {online === "esewa"
+                          ? copy.checkout.payWithEsewa
+                          : online === "khalti"
+                            ? copy.checkout.payWithKhalti
+                            : copy.checkout.payWithFonepay}
+                      </span>
+                      <span className="spec mt-1 block normal-case tracking-normal">
+                        {online === "esewa"
+                          ? checkoutCopy.checkout.esewaNote
+                          : online === "khalti"
+                            ? checkoutCopy.checkout.khaltiNote
+                            : checkoutCopy.checkout.fonepayNote}
+                      </span>
                     </span>
-                  </span>
-                </label>
+                  </label>
+                ))}
 
                 <label
                   className={`flex items-start gap-3 border border-rule p-4 has-[:checked]:border-clay has-[:checked]:bg-clay-soft/40 ${

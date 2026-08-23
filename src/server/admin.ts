@@ -1211,7 +1211,7 @@ export async function saveJournalDraft(input: {
   await withTx(async (tx) => {
     const [version] = await tx<{ id: string }[]>`
       insert into content_versions (page_id, blocks, excerpt, hero_image, author, product_ids)
-      values (${input.pageId}::uuid, ${JSON.stringify(blocks)}::jsonb, ${input.excerpt},
+      values (${input.pageId}::uuid, ${sql.json(blocks)}, ${input.excerpt},
               ${input.heroImage}, ${input.author}, ${input.productIds}::uuid[])
       returning id`;
     await tx`

@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { sql, withTx } from "@/lib/db";
 import { getCartLines, getSettings } from "@/server/queries";
-import { initiateEsewaPayment } from "@/server/payments";
+import {
+  initiateEsewaPayment,
+  initiateFonepayPayment,
+  initiateKhaltiPayment,
+} from "@/server/payments";
 import { copy } from "@/content/copy";
 import {
   FALLBACK_SHIPPING,
@@ -12,6 +16,7 @@ import {
   isEmail,
   type CartView,
   type PlaceOrderInput,
+  type PaymentHandoff,
   type PlaceOrderResult,
   type PricedLine,
   type RetryPaymentResult,
@@ -101,7 +106,7 @@ const placeOrderSchema = z.object({
     tole: z.string().trim().min(1).max(200),
     landmark: z.string().trim().max(200),
   }),
-  paymentMethod: z.enum(["esewa", "cod"]),
+  paymentMethod: z.enum(["esewa", "khalti", "fonepay", "cod"]),
   couponCode: z.string().trim().max(40),
   gift: z
     .object({
@@ -122,31 +127,41 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   }
   const data = parsed.data;
 
+  // The radio the customer saw came from these same settings, so this only
+  // fires on a stale tab or a hand-crafted request — but a till the console
+  // closed has to stay closed on the server too.
+  if (data.paymentMethod !== "cod") {
+    const payments = await getSettings<{ enabled?: Record<string, boolean> }>("payments");
+    if (payments?.enabled?.[data.paymentMethod] === false) {
+      return { ok: false, error: copy.checkout.errorGeneric };
+    }
+  }
+
   let order: { order_id: string; order_number: string; lookup_token: string };
   try {
     const [row] = await sql<
       { order_id: string; order_number: string; lookup_token: string; total_paisa: number }[]
     >`
       select * from place_order(
-        p_items           => ${JSON.stringify(
+        p_items           => ${sql.json(
           data.items.map((item) => ({ variant_id: item.variantId, quantity: item.quantity })),
-        )}::jsonb,
+        )},
         p_phone           => ${data.phone},
         p_email           => ${data.email || null},
         p_full_name       => ${data.fullName},
-        p_address         => ${JSON.stringify({
+        p_address         => ${sql.json({
           province: data.address.province,
           district: data.address.district,
           municipality: data.address.municipality,
           tole: data.address.tole,
           landmark: data.address.landmark,
-        })}::jsonb,
+        })},
         p_payment_method  => ${data.paymentMethod}::payment_method,
         p_idempotency_key => ${data.idempotencyKey},
         p_coupon_code     => ${data.couponCode || null},
         p_gift            => ${
           data.gift
-            ? JSON.stringify({
+            ? sql.json({
                 note: data.gift.note,
                 recipient_name: data.gift.recipientName,
                 recipient_phone: normalizePhone(data.gift.recipientPhone),
@@ -167,14 +182,31 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   }
 
   try {
-    const payment = await initiateEsewaPayment(order.order_id);
+    const payment = await initiatePayment(order.order_id, data.paymentMethod);
     return { ok: true, token: order.lookup_token, orderNumber: order.order_number, payment };
   } catch (error) {
-    console.error("initiateEsewaPayment failed", error);
+    console.error(`initiate ${data.paymentMethod} failed`, error);
     // The order exists and holds its stock. Send them to it and let them retry
     // there rather than losing the order behind a generic failure.
     return { ok: true, token: order.lookup_token, orderNumber: order.order_number, payment: null };
   }
+}
+
+/** One handoff shape out of three initiation shapes. */
+async function initiatePayment(
+  orderId: string,
+  method: "esewa" | "khalti" | "fonepay",
+): Promise<PaymentHandoff> {
+  if (method === "khalti") {
+    const initiation = await initiateKhaltiPayment(orderId);
+    return { kind: "redirect", gateway: "khalti", attemptId: initiation.attemptId, url: initiation.url };
+  }
+  if (method === "fonepay") {
+    const initiation = await initiateFonepayPayment(orderId);
+    return { kind: "redirect", gateway: "fonepay", attemptId: initiation.attemptId, url: initiation.url };
+  }
+  const initiation = await initiateEsewaPayment(orderId);
+  return { kind: "form", gateway: "esewa", ...initiation };
 }
 
 // -------------------------------------------------------- retry payment ----
@@ -185,14 +217,14 @@ export async function retryPayment(token: string): Promise<RetryPaymentResult> {
       from orders where lookup_token = ${token}`;
 
   if (!order) return { ok: false, error: copy.order.notFound };
-  if (order.payment_method !== "esewa") {
-    return { ok: false, error: "This order is not paid through eSewa." };
+  if (!["esewa", "khalti", "fonepay"].includes(order.payment_method)) {
+    return { ok: false, error: "This order is not paid online." };
   }
   if (!["failed", "expired", "pending_payment"].includes(order.status)) {
     return { ok: false, error: "This order no longer needs a payment." };
   }
 
-  // Failing an attempt released the reservation, and `initiateEsewaPayment`
+  // Failing an attempt released the reservation, and initiation
   // only opens an attempt on a `pending_payment` order. Take the stock back
   // first, in one transaction: if any line has since sold, nothing moves and
   // the order stays failed rather than becoming an unfulfillable payment.
@@ -219,7 +251,10 @@ export async function retryPayment(token: string): Promise<RetryPaymentResult> {
   }
 
   try {
-    return { ok: true, payment: await initiateEsewaPayment(order.id) };
+    return {
+      ok: true,
+      payment: await initiatePayment(order.id, order.payment_method as "esewa" | "khalti" | "fonepay"),
+    };
   } catch (error) {
     console.error("retryPayment failed", error);
     return { ok: false, error: copy.checkout.errorGeneric };

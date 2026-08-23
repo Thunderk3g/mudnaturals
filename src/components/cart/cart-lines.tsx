@@ -9,6 +9,7 @@ import { formatNpr } from "@/lib/money";
 import { Price } from "@/components/ui/spec";
 import { EmptyState } from "@/components/ui/layout";
 import { LinkButton } from "@/components/ui/button";
+import { LoomField } from "@/components/loaders";
 import { copy } from "@/content/copy";
 import { checkoutCopy, shippingFor, type CartView } from "@/content/checkout-copy";
 
@@ -321,7 +322,7 @@ export function CartPageBody() {
   const { view, loading, blocked } = state;
 
   if (!mounted || (loading && !view)) {
-    return <p className="spec py-16">{checkoutCopy.cart.loading}</p>;
+    return <LoomField label={checkoutCopy.cart.loading} />;
   }
 
   if (count === 0 || !view) {

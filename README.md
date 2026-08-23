@@ -22,7 +22,7 @@ rendered as product architecture rather than About-page copy.
 | Styling | Tailwind v4, CSS-first tokens | Tokens live in `src/app/globals.css` |
 | Database | Supabase Postgres, direct connection via `postgres` | The Data API stays fully revoked; see Security |
 | Images | `media_assets` rows served by `/api/media/[id]` | One store, no extra vendor or token; see The console |
-| Payments | eSewa ePay v2 (UAT) + Cash on Delivery | eSewa has no reliable callback — see Payments |
+| Payments | eSewa, Khalti, Fonepay (all sandbox) + Cash on Delivery | One shared pipeline — see Payments |
 | Hosting | Vercel, deploys from GitHub `main` | Pushes to `main` ship production |
 
 Money is **integer paisa** everywhere. It becomes a string only at the UI edge,
@@ -141,6 +141,30 @@ specific, documented defect in the codebase this build replaces
 ---
 
 ## Payments — read before touching
+
+Three online gateways share one pipeline: an attempt is opened with the amount
+frozen, each gateway answers "what happened?" in its own dialect,
+`src/lib/{esewa,khalti,fonepay}.ts` translate the dialects into one status
+vocabulary, and `applyDecision` in `src/server/payments.ts` is the single
+place any status becomes a state change. The return handlers and both crons all
+route through it.
+
+What each gateway can and cannot answer:
+
+| | initiation | server-side proof | reconcilable without the browser? |
+|---|---|---|---|
+| **eSewa** | signed browser form POST | status API on our stored uuid + amount | yes |
+| **Khalti** | server POST → hosted URL; `pidx` stored | lookup by `pidx` | yes |
+| **Fonepay** | signed redirect URL | `verificationMerchant`, but it needs the `UID`/`BID` that arrive **only on the browser callback** | **no** — no cold lookup exists; an attempt whose customer never returned waits out its window and expires |
+
+That last cell is Fonepay's structural weakness and the reason its return route
+stores `UID`/`BID` before anything that can fail. Khalti amounts are integer
+paisa natively. Fonepay amounts travel as rupees with two decimals, and both of
+its HMAC-SHA512 field orders (request: `PID,MD,PRN,AMT,CRN,DT,R1,R2,RU`;
+verification: `PID,AMT,PRN,BID,UID`) are pinned in `fonepay.test.ts` with
+vectors the live dev gateway accepted. All three run on sandbox credentials;
+each production cutover is its own deliberate step (`*_ENV=production` plus
+real merchant keys).
 
 **eSewa ePay v2 has no reliable server-to-server notification.** The docs mention
 IPN in a single sentence with no payload spec, no registration mechanism and no
