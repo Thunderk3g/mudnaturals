@@ -46,11 +46,25 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   stock_ledger_variant_id_fkey: "That variant has stock history, so it cannot be deleted.",
   stock_intake_variant_id_fkey: "That variant has intake history, so it cannot be deleted.",
   orders_gift_needs_recipient: "A gift order needs a recipient name and phone.",
+  categories_slug_key: "That category web address is already taken.",
+  categories_slug_format: "Web address must be lowercase words separated by hyphens.",
+  collections_slug_key: "That collection web address is already taken.",
+  collections_slug_format: "Web address must be lowercase words separated by hyphens.",
+  products_category_id_fkey: "Products are still filed under that category, so it cannot be deleted.",
+  media_assets_sha256_key: "That image is already in the library.",
+  media_assets_type_allowed: "Only JPEG, PNG, WebP and AVIF images can be stored.",
+  page_blocks_type_known: "That section type is not one this site knows how to render.",
+  page_blocks_data_is_object: "That section's settings were not saved in a readable shape.",
+  product_images_alt_present: "Every photograph needs a description for screen readers.",
+  product_images_has_a_source: "A photograph needs either a library image or a file path.",
 };
 
 /** Rewrites database and validation errors into something a shop manager can act on. */
 export function humanError(error: unknown): string {
   const err = error as { name?: string; message?: string; constraint_name?: string; issues?: { message: string }[] };
+
+  // Already written for the operator by the module that threw it.
+  if (err?.name === "OperatorError" && err.message) return err.message;
 
   // zod
   if (err?.issues?.length) return err.issues[0].message;
@@ -122,6 +136,25 @@ export const PAGE_SIZE = 50;
 
 // Nepal runs UTC+05:45; "today" means today in Kathmandu, not in the database's UTC.
 const DAY_START = sql`(date_trunc('day', now() at time zone 'Asia/Kathmandu')) at time zone 'Asia/Kathmandu'`;
+
+/**
+ * The three numbers the left rail shows as badges. Kept separate from
+ * `getDashboard` because it runs on every console page and must stay one row
+ * and three index-friendly counts.
+ */
+export async function getConsoleCounts() {
+  const [row] = await sql<{ orders_open: number; cod_pending: number; to_reconcile: number }[]>`
+    select
+      (select count(*)::int from orders
+        where status in ('paid','confirmed','packed')) as orders_open,
+      (select count(*)::int from orders
+        where payment_method = 'cod' and cod_confirmed_at is null
+          and status not in ('cancelled','refused','refunded','expired','failed')) as cod_pending,
+      (select count(*)::int from orders
+        where status in ('payment_verifying','manual_review')) as to_reconcile
+  `;
+  return row ?? { orders_open: 0, cod_pending: 0, to_reconcile: 0 };
+}
 
 export async function getDashboard() {
   const [totals] = await sql<
@@ -708,7 +741,10 @@ export async function getImpact() {
         revenue_paisa: number;
         units_bought: number;
         paid_to_maker_paisa: number;
-        working_with_us_since: string | null;
+        // A `date` column: postgres.js hands this back as a JS Date, not a
+        // string. Typing it as a string is how it reached JSX raw and crashed
+        // the page with "Objects are not valid as a React child".
+        working_with_us_since: Date | string | null;
       }[]
     >`select * from impact_by_maker order by paid_to_maker_paisa desc, maker_name`,
     sql<

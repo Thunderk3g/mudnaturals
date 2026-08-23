@@ -6,7 +6,7 @@ import { copy } from "@/content/copy";
  */
 export const shopCopy = {
   intro:
-    "Every object in the store, recorded with the maker who worked it, the material it came from and the district it was made in.",
+    "Every object in the store, recorded with the community it came from, the district it was made in, the material it was worked from and — where one is named — the maker.",
 
   // --- filtering ------------------------------------------------------------
   refine: "Refine",

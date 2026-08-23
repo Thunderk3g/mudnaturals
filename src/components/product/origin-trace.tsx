@@ -4,19 +4,26 @@ import { productCopy } from "@/content/product-copy";
 import type { ProductDetail } from "@/server/queries";
 
 /**
- * The specimen label. Four facts, each one a door: maker, community, material,
+ * The specimen label. Four facts, each one a door: community, maker, material,
  * time. The disclosure carries the rest of the chain — district, technique, and
  * the path written out end to end. Rows with no value are dropped by SpecList,
  * so a missing `labour_hours` prints nothing rather than a placeholder.
+ *
+ * Community first, maker second. The maker is still named and still linked
+ * wherever one has agreed to be — it is the order that changed, not the record.
  */
 export function OriginTrace({ product }: { product: ProductDetail }) {
   const primary: SpecItem[] = [
+    {
+      label: copy.product.community,
+      value: product.community_name,
+      href: product.community_slug ? `/communities/${product.community_slug}` : undefined,
+    },
     {
       label: copy.product.maker,
       value: product.maker_name,
       href: product.maker_slug ? `/makers/${product.maker_slug}` : undefined,
     },
-    { label: copy.product.community, value: product.community_name },
     {
       label: copy.product.material,
       value: product.material_name,

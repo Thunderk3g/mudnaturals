@@ -5,6 +5,7 @@ import { ActionForm } from "../../../action-form";
 import {
   AttemptPill,
   Empty,
+  Explain,
   Money,
   Note,
   PageHeader,
@@ -25,20 +26,24 @@ export default async function ReconciliationPage() {
   return (
     <>
       <PageHeader
-        title="Reconciliation queue"
+        title="Payments to check"
         meta={`${attempts.length} open attempt${attempts.length === 1 ? "" : "s"} · ${orders.length} order${
           orders.length === 1 ? "" : "s"
         } stuck`}
         actions={
-          <ActionForm action={reconcileNowAction} submitLabel="Reconcile now" variant="primary" size="md" />
+          <ActionForm action={reconcileNowAction} submitLabel="Check now" variant="primary" size="md" />
         }
       />
 
+      <Explain>
+        eSewa never tells us how a payment ended — we have to ask. Press <strong>Check now</strong> and every
+        payment below is looked up again and settled if it can be.
+      </Explain>
+
       <Note tone="warn">
-        eSewa ePay v2 has no server-to-server callback, so polling its status API is the only reliable
-        confirmation channel. This project runs on Vercel <strong>Hobby</strong>, where cron frequency is capped
-        at once per day — so running this by hand is a real operational path, not a fallback, until Pro is
-        purchased. Anything sitting here is a customer who may have paid and has nothing to show for it.
+        Everyone on this list may have paid and has nothing to show for it. The automatic check runs only
+        once a day on the current hosting plan, so doing it by hand here is a real part of the job, not a
+        fallback.
       </Note>
 
       <Panel title="Open payment attempts" className="mt-4">

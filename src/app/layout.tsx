@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { CartProvider } from "@/components/cart/cart-provider";
+import { getSeo, mediaSrc } from "@/server/cms";
 import { copy } from "@/content/copy";
 
 // Self-hosted at build time by next/font — no external font requests at runtime.
@@ -27,22 +28,34 @@ const spec = Geist_Mono({
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: `${copy.brand.name} — ${copy.brand.tagline}`,
-    template: `%s — ${copy.brand.name}`,
-  },
-  description: copy.brand.description,
-  openGraph: {
-    type: "website",
-    siteName: copy.brand.name,
-    title: `${copy.brand.name} — ${copy.brand.tagline}`,
-    description: copy.brand.description,
-    url: siteUrl,
-  },
-  robots: { index: true, follow: true },
-};
+/**
+ * Title and description are settings, so an operator can change what the site
+ * is called in search results without a deploy. The read is cached under the
+ * `cms` tag and shared with the header and footer, which both run on every
+ * page — one round trip covers all three.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeo();
+  const ogImage = mediaSrc(seo.og_media_id);
+
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: seo.default_title,
+      template: `%s — ${seo.default_title}`,
+    },
+    description: seo.default_description,
+    openGraph: {
+      type: "website",
+      siteName: seo.default_title,
+      title: seo.default_title,
+      description: seo.default_description,
+      url: siteUrl,
+      images: ogImage ? [ogImage] : undefined,
+    },
+    robots: { index: true, follow: true },
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

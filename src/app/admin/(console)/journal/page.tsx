@@ -2,7 +2,7 @@ import Link from "next/link";
 import { listJournalPages } from "@/server/admin";
 import { createJournalAction } from "../../actions";
 import { ActionForm } from "../../action-form";
-import { Empty, Field, Note, PageHeader, Panel, Pill, Table, When, td, th } from "../../ui";
+import { Empty, Explain, Field, PageHeader, Panel, Pill, Table, When, td, th } from "../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +13,10 @@ export default async function JournalPage() {
     <>
       <PageHeader title="Journal" meta={`${pages.length} post${pages.length === 1 ? "" : "s"}`} />
 
-      <Note>
-        Edits write a new version row and move the draft pointer. Publishing swaps the published pointer to that
-        version — a published version is never edited in place, so the public page never shows a half-finished
-        draft.
-      </Note>
+      <Explain>
+        Your edits are saved as a draft. The live story only changes when you press publish, so you can leave
+        something half-written for days without anyone seeing it.
+      </Explain>
 
       <Panel className="mt-4">
         {pages.length === 0 ? (

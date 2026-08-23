@@ -220,8 +220,11 @@ export default async function ImpactPage() {
             </table>
           </div>
           <p className="mt-6">
-            <Link href="/makers" className="spec text-ink hover:text-clay">
-              {copy.makers.title} →
+            <Link
+              href="/communities"
+              className="spec link-wipe text-ink transition-colors duration-300 hover:text-clay"
+            >
+              {copy.communities.title} <span aria-hidden className="arrow">→</span>
             </Link>
           </p>
         </Section>

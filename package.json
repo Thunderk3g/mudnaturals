@@ -13,7 +13,8 @@
     "db:migrate:status": "node scripts/migrate.mjs --status",
     "db:seed": "node scripts/seed.mjs",
     "media": "node scripts/prepare-images.mjs",
-    "security": "node scripts/security-smoke.mjs"
+    "security": "node scripts/security-smoke.mjs",
+    "media:import": "node scripts/import-media.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -23,6 +24,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -34,7 +36,6 @@
     "@vitejs/plugin-react": "^6.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.21",
-    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"

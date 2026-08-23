@@ -4,15 +4,17 @@ import type { ComponentProps } from "react";
 type Variant = "primary" | "secondary" | "quiet";
 type Size = "md" | "lg";
 
+// `btn-lift` carries the movement and the colour transition together, so the
+// two never run at different speeds. Defined in globals.css.
 const base =
-  "inline-flex items-center justify-center gap-2 font-medium transition-colors " +
+  "btn-lift inline-flex items-center justify-center gap-2 font-medium " +
   "disabled:cursor-not-allowed disabled:opacity-45";
 
 const variants: Record<Variant, string> = {
   // The clay accent earns its ~5% of the screen here and on price.
   primary: "bg-clay text-paper hover:bg-[#9d4826]",
   secondary: "border border-rule-strong text-ink hover:border-ink hover:bg-paper-deep",
-  quiet: "text-ink-2 underline decoration-rule-strong underline-offset-4 hover:text-clay hover:decoration-clay",
+  quiet: "link-wipe text-ink-2 hover:text-clay",
 };
 
 const sizes: Record<Size, string> = {

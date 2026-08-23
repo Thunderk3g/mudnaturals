@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listOrders, PAGE_SIZE, type OrderFilters } from "@/server/admin";
-import { Empty, Money, PageHeader, Panel, Pill, StatusPill, Table, When, numCell, td, th } from "../../ui";
+import { Empty, Explain, Money, PageHeader, Panel, Pill, StatusPill, Table, When, numCell, td, th } from "../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -56,17 +56,22 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         actions={
           <>
             <Link href="/admin/orders/cod" className="text-sm text-ink-2 underline underline-offset-4 hover:text-clay">
-              COD queue
+              Phone confirmations
             </Link>
             <Link
               href="/admin/orders/reconciliation"
               className="text-sm text-ink-2 underline underline-offset-4 hover:text-clay"
             >
-              Reconciliation
+              Payments to check
             </Link>
           </>
         }
       />
+
+      <Explain>
+        Every order ever placed. Open one to move it along, refund it, or read what has happened to it so far.
+        Filters below end up in the address bar, so a filtered list can be sent to someone else as a link.
+      </Explain>
 
       {/* A plain GET form: filters end up in the URL, so a filtered view is
           shareable and the back button behaves. No client JavaScript. */}

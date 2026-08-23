@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ProductCard as ProductCardData } from "@/server/queries";
 import { formatNpr } from "@/lib/money";
+import { Reveal } from "@/components/reveal";
 import { ProvenanceLine, Price } from "@/components/ui/spec";
 import { copy } from "@/content/copy";
 
@@ -9,6 +10,10 @@ import { copy } from "@/content/copy";
  * Card order is fixed by the design system: image → mono provenance line →
  * serif name → price. The provenance credit sits *above* the name, the way a
  * catalogue credits a maker before it names the object.
+ *
+ * Hover is one slow push into the photograph (`img-zoom`, 600ms) with the
+ * second frame crossing over it where one exists. Both images scale together,
+ * so the cross-fade never looks like two separate pictures.
  */
 export function ProductCard({ product, priority = false }: { product: ProductCardData; priority?: boolean }) {
   const soldOut = product.available <= 0;
@@ -24,9 +29,7 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
               fill
               sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               priority={priority}
-              className={`object-cover transition-opacity duration-500 ${
-                product.hover_image ? "group-hover:opacity-0" : ""
-              }`}
+              className={`img-zoom object-cover ${product.hover_image ? "group-hover:opacity-0" : ""}`}
             />
             {product.hover_image ? (
               <Image
@@ -35,7 +38,7 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
                 aria-hidden
                 fill
                 sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                className="object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                className="img-zoom object-cover opacity-0 group-hover:opacity-100"
               />
             ) : null}
           </>
@@ -53,8 +56,14 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
       </div>
 
       <div className="pt-4">
-        <ProvenanceLine maker={product.maker_name} district={product.district} />
-        <h3 className="mt-1.5 text-lg leading-snug group-hover:text-clay">{product.name}</h3>
+        <ProvenanceLine
+          community={product.community_name}
+          maker={product.maker_name}
+          district={product.district}
+        />
+        <h3 className="mt-1.5 text-lg leading-snug transition-colors duration-400 group-hover:text-clay">
+          {product.name}
+        </h3>
         <p className="mt-1">
           <Price muted={soldOut}>{formatNpr(product.price_paisa)}</Price>
         </p>
@@ -63,7 +72,13 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
   );
 }
 
-/** Three columns maximum on desktop, two on mobile. Never four. */
+/**
+ * Three columns maximum on desktop, two on mobile. Never four.
+ *
+ * The grid is itself the reveal target, so the cards arrive one after another
+ * rather than the block appearing whole. Grids already on screen at first paint
+ * are left alone by `Reveal`, so nothing above the fold waits for JavaScript.
+ */
 export function ProductGrid({
   products,
   columns = 3,
@@ -72,7 +87,8 @@ export function ProductGrid({
   columns?: 2 | 3;
 }) {
   return (
-    <div
+    <Reveal
+      stagger
       className={`grid grid-cols-2 gap-x-5 gap-y-12 lg:gap-x-8 ${
         columns === 2 ? "lg:grid-cols-2" : "lg:grid-cols-3"
       }`}
@@ -80,7 +96,7 @@ export function ProductGrid({
       {products.map((product, i) => (
         <ProductCard key={product.id} product={product} priority={i < 3} />
       ))}
-    </div>
+    </Reveal>
   );
 }
 

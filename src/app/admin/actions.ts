@@ -7,44 +7,14 @@ import { z } from "zod";
 import { passwordMatches, startSession, endSession, requireSession } from "@/lib/admin-auth";
 import { rupeesToPaisa } from "@/lib/money";
 import * as admin from "@/server/admin";
+import { run, text, optional, number, flag } from "./plumbing";
 import type { ActionState } from "./ui";
 
 /**
  * Every admin mutation in the system. Middleware is only the outer gate, so
  * each action re-verifies the session itself before it validates input or
- * touches the database.
+ * touches the database — see `run` in ./plumbing.
  */
-
-/* --------------------------------------------------------------- plumbing */
-
-function isRedirect(error: unknown): boolean {
-  const digest = (error as { digest?: unknown })?.digest;
-  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
-}
-
-/** Re-verify → run → revalidate. Database errors come back as human sentences. */
-async function run(paths: string[], fn: () => Promise<string>): Promise<ActionState> {
-  await requireSession(); // outside the try: its redirect must escape uncaught
-  try {
-    const ok = await fn();
-    for (const path of paths) revalidatePath(path);
-    return { ok };
-  } catch (error) {
-    if (isRedirect(error)) throw error;
-    return { error: admin.humanError(error) };
-  }
-}
-
-const text = (fd: FormData, key: string): string => {
-  const value = fd.get(key);
-  return typeof value === "string" ? value.trim() : "";
-};
-const optional = (fd: FormData, key: string): string | null => text(fd, key) || null;
-const number = (fd: FormData, key: string): number | null => {
-  const raw = text(fd, key);
-  return raw === "" ? null : Number(raw);
-};
-const flag = (fd: FormData, key: string): boolean => fd.get(key) != null;
 
 const uuid = z.string().uuid("That record id is not valid.");
 const slug = z

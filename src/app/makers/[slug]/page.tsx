@@ -25,7 +25,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     description,
     alternates: { canonical: `/makers/${maker.slug}` },
     openGraph: {
-      type: "profile",
+      // A workshop record, not a person's profile — the same distinction the
+      // page itself makes.
+      type: "website",
       title: maker.display_name,
       description,
       images: maker.portrait_image ? [maker.portrait_image] : undefined,
@@ -107,10 +109,13 @@ export default async function MakerPage({ params }: Params) {
       />
 
       <Section tight>
+        {/* The trail runs through the community rather than through a makers
+            index, because that is where this record actually sits now. */}
         <Breadcrumb
           trail={[
             { href: "/", label: "Home" },
-            { href: "/makers", label: copy.makers.title },
+            { href: "/communities", label: copy.communities.title },
+            { href: `/communities/${maker.community_slug}`, label: maker.community_name },
             { label: maker.display_name },
           ]}
         />
@@ -147,7 +152,11 @@ export default async function MakerPage({ params }: Params) {
             <SpecList
               className="mt-8"
               items={[
-                { label: storyCopy.makers.community, value: maker.community_name },
+                {
+                  label: storyCopy.makers.community,
+                  value: maker.community_name,
+                  href: `/communities/${maker.community_slug}`,
+                },
                 { label: storyCopy.makers.district, value: maker.district },
                 { label: storyCopy.makers.craft, value: maker.craft },
                 { label: storyCopy.makers.materials, value: materials.join(" · ") },

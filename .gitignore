@@ -40,6 +40,7 @@ yarn-error.log*
 .vercel
 .env*
 
-# local build escape hatch (see NEXT_DIST_DIR in next.config.ts)
-.next-verify/
-.next-nodb/
+# local build escape hatch (see NEXT_DIST_DIR in next.config.ts). A glob, not a
+# list: every named directory anyone picks is build output, and one that slipped
+# through turned a bare `npm run lint` into 8,600 problems from compiled files.
+.next-*/

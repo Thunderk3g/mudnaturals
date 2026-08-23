@@ -1,7 +1,7 @@
 import { listCommunities } from "@/server/admin";
 import { saveCommunityAction } from "../../actions";
 import { ActionForm } from "../../action-form";
-import { Empty, Field, PageHeader, Panel, PublishPill, Select, Table, TextArea, numCell, td, th } from "../../ui";
+import { Empty, Explain, Field, PageHeader, Panel, PublishPill, Select, Table, TextArea, numCell, td, th } from "../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +70,11 @@ export default async function CommunitiesPage() {
   return (
     <>
       <PageHeader title="Communities" meta={`${communities.length} on file`} />
+
+      <Explain>
+        Communities are how the site is organised now — a visitor browses by where something came from. Each
+        one needs a story and a photo before it is worth publishing.
+      </Explain>
 
       <Panel>
         {communities.length === 0 ? (

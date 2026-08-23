@@ -21,6 +21,7 @@ rendered as product architecture rather than About-page copy.
 | App | Next.js 15 (App Router), React 19 | Server Components; one mutation path via Server Actions |
 | Styling | Tailwind v4, CSS-first tokens | Tokens live in `src/app/globals.css` |
 | Database | Supabase Postgres, direct connection via `postgres` | The Data API stays fully revoked; see Security |
+| Images | `media_assets` rows served by `/api/media/[id]` | One store, no extra vendor or token; see The console |
 | Payments | eSewa ePay v2 (UAT) + Cash on Delivery | eSewa has no reliable callback — see Payments |
 | Hosting | Vercel, deploys from GitHub `main` | Pushes to `main` ship production |
 
@@ -50,8 +51,66 @@ npm run dev
 | `npm run db:migrate:status` | List applied and pending migrations |
 | `npm run db:seed` | Rebuild the catalogue. Refuses to run if orders exist |
 | `npm run media` | Crop product photos out of `screenshots/` into `public/media/` |
+| `npm run media:import` | Move `public/media/` into the media library and re-point every reference. Idempotent |
 | `npm run security` | Anon-key leak test. **Must pass before every deploy** |
 | `npm run test` | Unit tests (payment signing, status mapping) |
+
+---
+
+## The console
+
+`/admin` is a full content management system, not a set of order screens. An
+operator with no access to this repository can change anything a visitor sees.
+
+| Where | What it changes |
+|---|---|
+| **Website → Pages & sections** | The homepage, About and the shop intro, as an ordered list of sections. Add, reorder, hide, delete |
+| **Website → Photos** | The media library. Everything else picks from it |
+| **Website → Menu & site text** | Header menu, announcement strip, footer wording, contact details, SEO defaults, delivery and cash-on-delivery rules |
+| **Shop** | Products (including their photographs), categories, collections, stock |
+| **Communities** | Communities, makers, consent, impact |
+| **Stories** | The journal |
+
+### Pages are blocks
+
+A page is rows in `page_blocks`: a `page_key`, an ordered `position`, a
+`block_type` and a jsonb payload. `src/lib/blocks.ts` is the authority on what
+each type's payload holds — the console builds its editor from that file, and
+the storefront renders from it. **Adding a section type to the site is three
+edits:** an entry in `BLOCK_SPECS`, a `case` in the block renderer, and one
+value added to the `page_blocks_type_known` CHECK.
+
+Payloads are written with `sql.json`, never `JSON.stringify`. Stringifying first
+stores a jsonb *string* scalar and every reader then sees `"{...}"` instead of an
+object; `page_blocks_data_is_object` now rejects that at write time.
+
+### Media
+
+Uploaded images are rows in `media_assets` — bytes and all — served by
+`/api/media/[id]` under a one-year immutable cache header. No second vendor, no
+token to rotate, no bucket to leak, and the CDN means the function runs about
+once per image per region. Uploads are re-encoded to WebP at 2400px before they
+land, so a row is a few hundred KB; the twenty-one shipped photographs occupy
+about 4 MB in total.
+
+Storage is content-addressed on the encoded bytes, so uploading the same file
+twice returns the same row. Deleting is refused while anything still points at
+the asset — the foreign keys are `on delete set null`, so without that guard a
+tidy-up would silently blank images across the live site.
+
+### Saving must reach the site
+
+Every console action that changes something a visitor sees calls
+`revalidateCms()` **and** `revalidatePath("/", "layout")`. The first drops the
+tagged reads in `src/server/cms.ts`; the second drops the rendered pages built
+from them. Without the second the change lands in the database, the console
+shows it, and the live site keeps serving old static HTML until the ISR window
+expires — which reads to an operator as a broken CMS.
+
+The reads in `src/server/cms.ts` are cached under the `cms` tag for a reason:
+the header and footer run on every page, and a build renders eighteen at once.
+Uncached, that is eighteen concurrent round trips to Seoul before a single page
+can stream — the same shape as the failure documented under Region below.
 
 ---
 
@@ -143,6 +202,11 @@ schedule is a one-line change in `vercel.json`.
   number. Order numbers are random, not sequential.
 - Secrets sit behind `import "server-only"` and never carry a `NEXT_PUBLIC_`
   prefix.
+- `media_assets` has RLS on and **no grant at all**. Image bytes reach the
+  public only through `/api/media/[id]`, one asset at a time, over the server
+  connection — never as a listable table on the Data API. `page_blocks` is
+  granted `SELECT` and filtered to `is_visible`, since it is the public layout
+  of the site.
 - `npm run security` proves the posture from the outside, using only the
   publishable key. **It must pass before every deploy.**
 

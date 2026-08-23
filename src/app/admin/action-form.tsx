@@ -49,6 +49,7 @@ export function ActionForm({
   size = "sm",
   confirm,
   className = "",
+  compact = false,
   footer,
 }: {
   action: Action;
@@ -59,6 +60,12 @@ export function ActionForm({
   /** Native confirm() for destructive actions. Skipped when absent. */
   confirm?: string;
   className?: string;
+  /**
+   * Drops the gap above the button. For the one-button forms that sit inline in
+   * a row of controls — a reorder arrow, a show/hide toggle — where the default
+   * spacing pushes the button out of line with everything beside it.
+   */
+  compact?: boolean;
   footer?: ReactNode;
 }) {
   const [state, formAction] = useActionState(action, null);
@@ -72,7 +79,7 @@ export function ActionForm({
       }}
     >
       {children}
-      <div className="mt-2 flex flex-wrap items-center gap-3">
+      <div className={`flex flex-wrap items-center gap-3 ${compact ? "" : "mt-2"}`}>
         <Submit label={submitLabel} variant={variant} size={size} />
         {footer}
         {state?.error ? (

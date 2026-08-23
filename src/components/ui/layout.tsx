@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Reveal } from "@/components/reveal";
 
 /** A page band. Section air stays generous on mobile — cramped mobile is where
  *  premium brands lose the illusion. */
@@ -19,7 +20,14 @@ export function Section({
   );
 }
 
-/** Eyebrow in the mono specimen register, serif title, optional trailing link. */
+/**
+ * Eyebrow in the mono specimen register, serif title, optional trailing link.
+ *
+ * The three parts are deliberately not evenly spaced: the eyebrow sits close
+ * under a short clay rule and tight to the title it labels, and the body drops
+ * away from both. It reads as a caption, a heading and a note — which is what
+ * they are — rather than three stacked lines.
+ */
 export function SectionHeader({
   eyebrow,
   title,
@@ -32,21 +40,28 @@ export function SectionHeader({
   action?: { href: string; label: string };
 }) {
   return (
-    <header className="mb-10 flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b border-rule pb-5">
-      <div className="max-w-2xl">
-        {eyebrow ? <p className="spec mb-3">{eyebrow}</p> : null}
-        <h2 className="text-3xl lg:text-4xl">{title}</h2>
-        {body ? <p className="mt-3 text-ink-2">{body}</p> : null}
-      </div>
-      {action ? (
-        <Link
-          href={action.href}
-          className="spec whitespace-nowrap text-ink hover:text-clay"
-        >
-          {action.label} →
-        </Link>
-      ) : null}
-    </header>
+    <Reveal>
+      <header className="mb-10 flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b border-rule pb-5">
+        <div className="max-w-2xl">
+          {eyebrow ? (
+            <p className="spec mb-2.5 flex items-center gap-3">
+              <span aria-hidden className="inline-block h-px w-6 shrink-0 bg-clay" />
+              {eyebrow}
+            </p>
+          ) : null}
+          <h2 className="text-3xl lg:text-4xl">{title}</h2>
+          {body ? <p className="mt-4 max-w-[58ch] leading-relaxed text-ink-2">{body}</p> : null}
+        </div>
+        {action ? (
+          <Link
+            href={action.href}
+            className="spec link-wipe whitespace-nowrap text-ink transition-colors duration-300 hover:text-clay"
+          >
+            {action.label} <span aria-hidden className="arrow">→</span>
+          </Link>
+        ) : null}
+      </header>
+    </Reveal>
   );
 }
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listAdminProducts } from "@/server/admin";
-import { Empty, Money, PageHeader, Panel, Pill, PublishPill, Table, numCell, td, th } from "../../ui";
+import { Empty, Explain, Money, PageHeader, Panel, Pill, PublishPill, Table, numCell, td, th } from "../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,11 @@ export default async function ProductsPage({
           </Link>
         }
       />
+
+      <Explain>
+        Everything the shop sells, live or not. Open one to change its words, its price, its photographs, or
+        whether anyone can see it. A product cannot go live until it says which community it came from.
+      </Explain>
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2">
         <div>

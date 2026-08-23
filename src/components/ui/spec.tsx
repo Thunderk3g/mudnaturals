@@ -52,17 +52,26 @@ export function SpecList({
   );
 }
 
-/** A single inline credit, used above a product name on cards and headers. */
+/**
+ * A single inline credit, used above a product name on cards and headers.
+ *
+ * The community leads and the maker stands in for it only where no community is
+ * recorded. That order is the positioning, not a layout preference: this store
+ * sells work from places it buys from, and the maker's name belongs on the
+ * origin record below rather than in the headline credit.
+ */
 export function ProvenanceLine({
+  community,
   maker,
   district,
   className = "",
 }: {
+  community?: string | null;
   maker?: string | null;
   district?: string | null;
   className?: string;
 }) {
-  const parts = [maker, district].filter(Boolean);
+  const parts = [community || maker, district].filter(Boolean);
   if (!parts.length) return null;
   return <p className={`spec ${className}`}>{parts.join(" · ")}</p>;
 }

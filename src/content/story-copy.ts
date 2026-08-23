@@ -64,7 +64,7 @@ export const storyCopy = {
     recordTitle: "Workshop record",
     attributionTitle: "How this page is attributed",
     attributionBody:
-      "This is a workshop-level record. It carries the community name, its district and its craft because that is what has been agreed for publication. A personal name, a portrait and a quote appear here the moment a maker signs for them, and come down the day they ask.",
+      "This is a community-level record. It carries the community name, its district and its craft because that is what has been agreed for publication. A personal name, a portrait and a quote appear here the moment a maker signs for them, and come down the day they ask.",
     community: "Community",
     district: "District",
     craft: "Craft",
@@ -163,13 +163,14 @@ export const storyCopy = {
     eyebrow: "About",
     title: "We started with mud.",
     spine: [
-      "Clay, grass, bark, seed — the materials Nepali hands have shaped for generations. MUD Naturals is a concept store for the things those hands still make: baskets coiled from kans grass, mats woven in a single pass, vessels shaped from papyrus.",
-      "We are a business, and we say so plainly. We find remarkable makers and producers, work with them on design, quality and packaging, and bring their work to people who value it — at fair, fixed prices agreed together, not negotiated down.",
+      "Clay, grass, bark, seed — the materials Nepali hands have shaped for generations. MUD Naturals is a curated store for the things those hands still make: baskets coiled from kans grass, mats woven in a single pass, vessels shaped from papyrus.",
+      "We are a business, and we say so plainly. We buy from a small number of communities, go back to the same ones each season, and work with them on design, quality and packaging — at fair, fixed prices agreed together, not negotiated down.",
+      "We do not run a directory of individuals. The community is the unit we buy from and the unit we name, and a maker's own name appears on the record where they have agreed to it.",
       "Nothing here asks for sympathy. Everything here earns its place.",
     ],
     philosophyTitle: "The four terms",
     philosophyItems: [
-      { term: "People", body: "Named workshops, agreed prices, written consent before a name is published." },
+      { term: "People", body: "Named communities, agreed prices, written consent before a name is published." },
       { term: "Nature", body: "Wild grasses cut in season and by hand, so the beds regrow. Stated per material, never as a slogan." },
       { term: "Craft", body: "Techniques catalogued step by step, because the sequence is the skill." },
       { term: "Commerce", body: "Stock bought outright and paid for on delivery. A trade, run as a trade." },

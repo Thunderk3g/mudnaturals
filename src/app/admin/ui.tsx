@@ -127,23 +127,112 @@ export function When({ value, time = true }: { value: string | Date | null | und
 
 /* ------------------------------------------------------------------ shell -- */
 
+/**
+ * The bar at the top of every console page.
+ *
+ * It sticks, and it bleeds to the edges of the shell with negative margins so
+ * it can do that from inside the padded `<main>` without every page having to
+ * know about the layout. `crumbs` is the trail back out of a detail screen —
+ * the one thing the old console had no room for.
+ */
 export function PageHeader({
   title,
   meta,
+  crumbs,
   actions,
 }: {
   title: string;
   meta?: ReactNode;
+  crumbs?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-rule-strong pb-3">
-      <div>
-        <h1 className="font-sans text-xl font-semibold tracking-tight">{title}</h1>
-        {meta ? <div className="mt-1 text-sm text-ink-2">{meta}</div> : null}
+    <header className="sticky top-0 z-20 -mx-5 mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-rule-strong bg-paper-deep/92 px-5 py-3 backdrop-blur-sm lg:-mx-8 lg:px-8">
+      <div className="min-w-0">
+        {crumbs ? <div className="spec mb-0.5">{crumbs}</div> : null}
+        <h1 className="truncate font-serif text-[1.375rem] leading-tight tracking-tight text-ink">
+          {title}
+        </h1>
+        {meta ? <div className="mt-0.5 text-sm text-ink-2">{meta}</div> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
+  );
+}
+
+/** Breadcrumb trail for `PageHeader`. */
+export function Crumbs({ trail }: { trail: { label: string; href?: string }[] }) {
+  return (
+    <span>
+      {trail.map((crumb, index) => (
+        <span key={`${crumb.label}-${index}`}>
+          {index > 0 ? <span className="px-1.5 opacity-50">/</span> : null}
+          {crumb.href ? (
+            <Link href={crumb.href} className="hover:text-ink hover:underline">
+              {crumb.label}
+            </Link>
+          ) : (
+            crumb.label
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * A plain-language explanation of what a screen is for, shown above it.
+ *
+ * Every screen in this console has one. The console is used by people who did
+ * not build it and will not read documentation, and a sentence at the top of
+ * the page is the only documentation anybody reads.
+ */
+export function Explain({ children }: { children: ReactNode }) {
+  return (
+    <p className="mb-5 max-w-[70ch] border-l-2 border-clay bg-clay-soft/40 py-2 pl-3 text-sm leading-relaxed text-ink-2">
+      {children}
+    </p>
+  );
+}
+
+/** A headline number with a caption underneath. */
+export function Kpi({
+  label,
+  value,
+  foot,
+  href,
+  tone = "neutral",
+}: {
+  label: string;
+  value: ReactNode;
+  foot?: ReactNode;
+  href?: string;
+  tone?: Tone;
+}) {
+  const accent = tone === "neutral" ? "text-ink" : tones[tone].split(" ")[1];
+  const body = (
+    <>
+      <div className="spec">{label}</div>
+      <div className={`mt-2 font-serif text-[2rem] leading-none tabular-nums ${accent}`}>{value}</div>
+      {foot ? <div className="mt-2 text-xs text-ink-2">{foot}</div> : null}
+    </>
+  );
+  return href ? (
+    <Link
+      href={href}
+      className="block rounded-sm border border-rule bg-surface p-4 transition-colors hover:border-ink"
+    >
+      {body}
+    </Link>
+  ) : (
+    <div className="rounded-sm border border-rule bg-surface p-4">{body}</div>
+  );
+}
+
+/** The filter/search strip that sits directly under a panel's title. */
+export function Toolbar({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-end gap-3 border-b border-rule px-3 py-3">{children}</div>
   );
 }
 
@@ -159,11 +248,11 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`border border-rule bg-surface ${className}`}>
+    <section className={`overflow-hidden rounded-sm border border-rule bg-surface ${className}`}>
       {title ? (
-        <div className="flex items-center justify-between gap-4 border-b border-rule px-3 py-2">
-          <h2 className="spec text-ink">{title}</h2>
-          {actions}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule px-3 py-2.5">
+          <h2 className="font-serif text-base leading-none text-ink">{title}</h2>
+          {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
         </div>
       ) : null}
       {children}
@@ -204,8 +293,14 @@ export function Note({ children, tone = "info" }: { children: ReactNode; tone?: 
   );
 }
 
-export function Empty({ children }: { children: ReactNode }) {
-  return <p className="px-3 py-8 text-center text-sm text-ink-2">{children}</p>;
+/** Nothing here yet — say what would put something here, and offer the way in. */
+export function Empty({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="px-3 py-10 text-center">
+      <p className="mx-auto max-w-[46ch] text-sm leading-relaxed text-ink-2">{children}</p>
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+    </div>
+  );
 }
 
 /* ----------------------------------------------------------------- fields -- */

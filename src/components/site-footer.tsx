@@ -1,17 +1,27 @@
 import Link from "next/link";
+import { getChrome } from "@/server/cms";
 import { getImpactSummary } from "@/server/queries";
+import type { FooterGroup } from "@/lib/site-settings";
 import { copy } from "@/content/copy";
 import { homeCopy } from "@/content/home-copy";
 
 /**
- * Four catalogue columns, then the live impact band, then the colophon. The
- * footer renders on every page, so a database hiccup must not take the page
- * with it — the band simply drops out.
+ * Catalogue columns, then the live impact band, then the colophon.
+ *
+ * The columns come from settings when an operator has arranged them and from
+ * the constant below when they have not — an empty footer is a mistake nobody
+ * makes on purpose, and a footer with no way out of it strands people.
+ *
+ * The impact band is unchanged and must stay that way: `getImpactSummary()` is
+ * an aggregate, cached for an hour, because running it per render meant
+ * eighteen concurrent aggregates during a build. The footer is also on every
+ * page, so a database hiccup must not take the page with it — the band drops
+ * out instead.
  */
 
-const COLUMNS = [
+const FALLBACK_GROUPS: FooterGroup[] = [
   {
-    heading: copy.footer.shopHeading,
+    title: copy.footer.shopHeading,
     links: [
       { href: "/shop", label: copy.shop.allProducts },
       { href: "/collections", label: copy.nav.collections },
@@ -19,15 +29,15 @@ const COLUMNS = [
     ],
   },
   {
-    heading: copy.footer.discoverHeading,
+    title: copy.footer.discoverHeading,
     links: [
-      { href: "/makers", label: copy.nav.makers },
-      { href: "/journal", label: copy.nav.journal },
+      { href: "/communities", label: copy.nav.communities },
       { href: "/craft", label: copy.nav.craft },
+      { href: "/journal", label: copy.nav.journal },
     ],
   },
   {
-    heading: copy.footer.aboutHeading,
+    title: copy.footer.aboutHeading,
     links: [
       { href: "/about", label: copy.nav.story },
       { href: "/impact", label: copy.nav.impact },
@@ -35,7 +45,7 @@ const COLUMNS = [
     ],
   },
   {
-    heading: copy.footer.helpHeading,
+    title: copy.footer.helpHeading,
     links: [
       { href: "/shipping", label: copy.footer.shipping },
       { href: "/returns", label: copy.footer.returns },
@@ -45,39 +55,66 @@ const COLUMNS = [
   },
 ];
 
+/** Instagram is stored as a handle or a URL; both have to end up as a link. */
+function instagramHref(value: string) {
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://instagram.com/${value.replace(/^@/, "")}`;
+}
+
 export async function SiteFooter() {
-  const impact = await getImpactSummary().catch(() => ({} as Record<string, unknown>));
+  const [{ site, nav }, impact] = await Promise.all([
+    getChrome(),
+    getImpactSummary().catch(() => ({}) as Record<string, unknown>),
+  ]);
+
   const stat = (key: string) => (typeof impact[key] === "number" ? (impact[key] as number) : null);
 
   // flatMap rather than filter + type predicate: it narrows `value` to number
   // without a cast, so a missing count simply drops out of the band.
   const stats = [
-    { label: String(copy.impact.makersCount), value: stat("maker_count") },
     { label: String(copy.impact.communitiesCount), value: stat("community_count") },
     { label: String(copy.impact.districtsCount), value: stat("district_count") },
+    { label: String(copy.impact.makersCount), value: stat("maker_count") },
   ].flatMap((entry) => (entry.value === null ? [] : [{ label: entry.label, value: entry.value }]));
+
+  const groups = nav.footer_groups.length ? nav.footer_groups : FALLBACK_GROUPS;
+
+  const contacts = [
+    site.instagram
+      ? { key: "instagram", href: instagramHref(site.instagram), label: homeCopy.footer.instagram, external: true }
+      : null,
+    site.email ? { key: "email", href: `mailto:${site.email}`, label: site.email, external: false } : null,
+    site.phone
+      ? { key: "phone", href: `tel:${site.phone.replace(/\s+/g, "")}`, label: site.phone, external: false }
+      : null,
+  ].flatMap((entry) => (entry ? [entry] : []));
 
   return (
     <footer className="mt-20 border-t border-rule bg-paper-deep lg:mt-30">
       <div className="container-page py-16 lg:py-20">
         <div className="grid grid-cols-12 gap-x-8 gap-y-12">
           <div className="col-span-12 lg:col-span-4">
-            <p className="font-serif text-2xl">{copy.brand.name}</p>
-            <p className="spec mt-2">{copy.brand.tagline}</p>
-            <p className="mt-5 max-w-xs text-sm leading-relaxed text-ink-2">{copy.brand.description}</p>
+            <p className="font-serif text-2xl">{site.brand_name}</p>
+            {site.tagline ? <p className="spec mt-2">{site.tagline}</p> : null}
+            {site.footer_blurb ? (
+              <p className="mt-5 max-w-xs text-sm leading-relaxed text-ink-2">{site.footer_blurb}</p>
+            ) : null}
           </div>
 
           <nav
             aria-label={homeCopy.footer.navLabel}
             className="col-span-12 grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4 lg:col-span-8"
           >
-            {COLUMNS.map((column) => (
-              <div key={column.heading}>
-                <h2 className="spec">{column.heading}</h2>
+            {groups.map((group) => (
+              <div key={group.title}>
+                <h2 className="spec">{group.title}</h2>
                 <ul className="mt-4 space-y-2.5">
-                  {column.links.map((link) => (
+                  {group.links.map((link) => (
                     <li key={link.href}>
-                      <Link href={link.href} className="text-sm text-ink-2 hover:text-clay">
+                      <Link
+                        href={link.href}
+                        className="link-wipe inline-block text-sm text-ink-2 transition-colors duration-300 hover:text-clay"
+                      >
                         {link.label}
                       </Link>
                     </li>
@@ -102,8 +139,11 @@ export async function SiteFooter() {
             </dl>
             <div className="max-w-xs">
               <p className="text-sm text-ink-2">{homeCopy.footer.impactBandNote}</p>
-              <Link href="/impact" className="spec mt-2 inline-block text-ink hover:text-clay">
-                {copy.impact.title} →
+              <Link
+                href="/impact"
+                className="spec link-wipe mt-2 inline-block text-ink transition-colors duration-300 hover:text-clay"
+              >
+                {copy.impact.title} <span aria-hidden className="arrow">→</span>
               </Link>
             </div>
           </div>
@@ -138,23 +178,24 @@ export async function SiteFooter() {
           <div className="col-span-12 sm:col-span-6 lg:col-span-4 lg:col-start-8">
             <h2 className="spec">{homeCopy.footer.elsewhereHeading}</h2>
             <ul className="mt-4 space-y-2.5">
+              {/* Only what has actually been published. An empty contact row is
+                  a promise the site cannot keep. */}
+              {contacts.map((contact) => (
+                <li key={contact.key}>
+                  <a
+                    href={contact.href}
+                    className="link-wipe inline-block text-sm text-ink-2 transition-colors duration-300 hover:text-clay"
+                    {...(contact.external ? { rel: "noreferrer", target: "_blank" } : {})}
+                  >
+                    {contact.label}
+                  </a>
+                </li>
+              ))}
               <li>
-                <a
-                  href={homeCopy.footer.instagramHref}
-                  className="text-sm text-ink-2 hover:text-clay"
-                  rel="noreferrer"
-                  target="_blank"
+                <Link
+                  href="/contact"
+                  className="link-wipe inline-block text-sm text-ink-2 transition-colors duration-300 hover:text-clay"
                 >
-                  {homeCopy.footer.instagram}
-                </a>
-              </li>
-              <li>
-                <a href={`mailto:${homeCopy.footer.email}`} className="text-sm text-ink-2 hover:text-clay">
-                  {homeCopy.footer.email}
-                </a>
-              </li>
-              <li>
-                <Link href="/contact" className="text-sm text-ink-2 hover:text-clay">
                   {copy.nav.contact}
                 </Link>
               </li>
@@ -168,10 +209,16 @@ export async function SiteFooter() {
           <p className="spec">{copy.footer.rights(new Date().getFullYear())}</p>
           <p className="spec max-w-md">{homeCopy.footer.photographyNote}</p>
           <div className="flex gap-6">
-            <Link href="/privacy" className="spec text-ink hover:text-clay">
+            <Link
+              href="/privacy"
+              className="spec link-wipe text-ink transition-colors duration-300 hover:text-clay"
+            >
               {copy.footer.privacy}
             </Link>
-            <Link href="/terms" className="spec text-ink hover:text-clay">
+            <Link
+              href="/terms"
+              className="spec link-wipe text-ink transition-colors duration-300 hover:text-clay"
+            >
               {copy.footer.terms}
             </Link>
           </div>

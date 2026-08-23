@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CONSENT_SCOPES, getFormOptions, listMakers } from "@/server/admin";
 import { saveMakerAction } from "../../actions";
 import { ActionForm } from "../../action-form";
-import { Empty, Field, Note, PageHeader, Panel, Pill, PublishPill, Select, Table, numCell, td, th } from "../../ui";
+import { Empty, Explain, Field, Note, PageHeader, Panel, Pill, PublishPill, Select, Table, numCell, td, th } from "../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +13,14 @@ export default async function MakersPage() {
     <>
       <PageHeader title="Makers" meta={`${makers.length} on file`} />
 
+      <Explain>
+        The site now leads with communities rather than individual makers. A maker still appears on the
+        products they made, so these records still matter — they are just no longer the way people browse.
+      </Explain>
+
       <Note tone="warn">
-        Publishing a maker&apos;s real name or portrait without an active consent record is exactly what the
-        consent table exists to prevent. Check the consent column before a maker goes live.
+        Never publish a person&apos;s real name or photograph without a signed consent record. Check the
+        consent column before setting anyone live.
       </Note>
 
       <Panel className="mt-4">

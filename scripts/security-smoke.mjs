@@ -24,6 +24,8 @@ const PUBLIC_OK = new Set([
   "categories", "collections", "collection_products",
   "makers", "communities", "materials", "craft_techniques",
   "stock_levels", "content_pages", "content_versions", "reviews",
+  // Page sections are the public layout of the site; RLS filters to visible.
+  "page_blocks",
 ]);
 
 // Must never return a row to the anon key.
@@ -35,6 +37,10 @@ const MUST_BE_EMPTY = [
   "coupons", "coupon_redemptions",
   "settings", "audit_log",
   "impact_by_maker", "impact_by_community",
+  // The media library holds raw bytes in a column. It reaches the public only
+  // through /api/media/[id], which serves one asset at a time from the server
+  // connection — never as a listable table over the Data API.
+  "media_assets",
 ];
 
 // This script gates deploys, so a flaky network must never be reported as

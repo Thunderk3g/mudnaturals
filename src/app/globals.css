@@ -37,6 +37,14 @@
 }
 
 @layer base {
+  :root {
+    /* One easing for the whole site. Slow out, no overshoot — paper settling,
+       not a spring. Everything below borrows these two values. */
+    --ease-paper: cubic-bezier(0.22, 1, 0.36, 1);
+    --dur-enter: 600ms;
+    --dur-hover: 400ms;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
   }
@@ -92,14 +100,86 @@
     outline-offset: 2px;
   }
 
-  /* Motion budget: one fade-and-rise on entry, nothing else. */
+  /* -------------------------------------------------------------- motion --
+     Everything moves the same way: 8–16px, 400–700ms, one easing, once. No
+     loops, no springs, nothing that draws attention to the animation itself. */
+
   @keyframes rise-in {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: none; }
   }
 
   .rise {
-    animation: rise-in 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: rise-in var(--dur-enter) var(--ease-paper) both;
+  }
+
+  /* Route change. `template.tsx` remounts on every navigation, so the element
+     is new each time and the animation simply runs again. */
+  @keyframes route-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .route-enter {
+    animation: route-in 450ms var(--ease-paper) both;
+  }
+
+  /* Reveal-on-scroll. The attribute is written by JS *after* mount and only on
+     elements that started below the fold, so server HTML paints fully visible:
+     no flash above the fold, no blank page without JS, no layout shift either
+     way — opacity and transform never affect layout. */
+  [data-reveal] {
+    transition:
+      opacity var(--dur-enter) var(--ease-paper),
+      transform var(--dur-enter) var(--ease-paper);
+  }
+  [data-reveal="out"]:not([data-stagger]) {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  [data-reveal="in"]:not([data-stagger]) {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Staggered grids: the container holds still and its children arrive in
+     sequence, which reads like a page being set rather than a list loading. */
+  [data-stagger] > * {
+    transition:
+      opacity var(--dur-enter) var(--ease-paper),
+      transform var(--dur-enter) var(--ease-paper);
+  }
+  [data-reveal="out"][data-stagger] > * {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  [data-reveal="in"][data-stagger] > * {
+    opacity: 1;
+    transform: none;
+  }
+  [data-reveal="in"][data-stagger] > *:nth-child(2) { transition-delay: calc(var(--stagger, 90ms) * 1); }
+  [data-reveal="in"][data-stagger] > *:nth-child(3) { transition-delay: calc(var(--stagger, 90ms) * 2); }
+  [data-reveal="in"][data-stagger] > *:nth-child(4) { transition-delay: calc(var(--stagger, 90ms) * 3); }
+  [data-reveal="in"][data-stagger] > *:nth-child(5) { transition-delay: calc(var(--stagger, 90ms) * 4); }
+  [data-reveal="in"][data-stagger] > *:nth-child(n + 6) { transition-delay: calc(var(--stagger, 90ms) * 5); }
+
+  /* Photography under a link: a slow push-in, never a snap. */
+  .img-zoom {
+    transition: transform 600ms var(--ease-paper), opacity 500ms var(--ease-paper);
+  }
+  .group:hover .img-zoom {
+    transform: scale(1.04);
+  }
+
+  /* An arrow that leans in the direction it points. */
+  .arrow {
+    display: inline-block;
+    transition: transform var(--dur-hover) var(--ease-paper);
+  }
+  a:hover .arrow,
+  button:hover .arrow,
+  .group:hover .arrow {
+    transform: translateX(4px);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -109,6 +189,16 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+
+    /* Anything that hides content before moving it must simply not hide it. */
+    [data-reveal],
+    [data-stagger] > * {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    /* The underline still appears on hover — it just arrives at once rather
+       than wiping, which the near-zero duration above already handles. */
+    .route-enter { animation: none !important; }
   }
 }
 
@@ -122,6 +212,74 @@
 
   @media (min-width: 1024px) {
     .container-page { padding-inline: 2.5rem; }
+  }
+
+  /* Full-bleed band: escapes the page gutter without a horizontal scrollbar.
+     Used for the feature bands that sit on the paper-deep ground. */
+  .band-deep {
+    background: var(--color-paper-deep);
+    border-top: 1px solid var(--color-rule);
+    border-bottom: 1px solid var(--color-rule);
+  }
+
+  /* An underline that draws itself from the left rather than blinking on. */
+  .link-wipe {
+    position: relative;
+  }
+  .link-wipe::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.15em;
+    height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 420ms var(--ease-paper);
+  }
+  .link-wipe:hover::after,
+  .link-wipe:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  /* Buttons rise a single pixel. Any more and it reads as a web app. */
+  .btn-lift {
+    transition:
+      transform 260ms var(--ease-paper),
+      background-color var(--dur-hover) var(--ease-paper),
+      border-color var(--dur-hover) var(--ease-paper),
+      color var(--dur-hover) var(--ease-paper);
+  }
+  .btn-lift:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+  .btn-lift:active:not(:disabled) {
+    transform: none;
+  }
+
+  /* Masthead. Once the page has moved, the bar tightens and its hairline firms
+     up — the only thing on the site that reacts to scroll position.
+     Desktop only: the mobile panel is anchored to a fixed header height. */
+  .masthead {
+    transition: border-color 350ms var(--ease-paper);
+  }
+  .masthead-row {
+    height: 4rem;
+    transition: height 350ms var(--ease-paper);
+  }
+  .masthead-sub {
+    transition: opacity 300ms var(--ease-paper);
+  }
+
+  @media (min-width: 1024px) {
+    .masthead-row { height: 5rem; }
+
+    .masthead[data-scrolled="true"] {
+      border-bottom-color: var(--color-rule-strong);
+    }
+    .masthead[data-scrolled="true"] .masthead-row { height: 4rem; }
+    .masthead[data-scrolled="true"] .masthead-sub { opacity: 0; }
   }
 
   /* Skip link: visible the moment it takes focus. */

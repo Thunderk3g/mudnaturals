@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getFormOptions, listLedger, listStock, listVariantsForIntake } from "@/server/admin";
 import { recordIntakeAction } from "../../actions";
 import { ActionForm } from "../../action-form";
-import { Empty, Field, Money, Note, PageHeader, Panel, Pill, Select, Table, When, numCell, td, th } from "../../ui";
+import { Empty, Explain, Field, Money, PageHeader, Panel, Pill, Select, Table, When, numCell, td, th } from "../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +19,11 @@ export default async function StockPage() {
     <>
       <PageHeader title="Stock" meta={`${levels.length} variants · ${low} at or below threshold`} />
 
-      <Note>
-        Stock moves only through intake. The ledger rejects UPDATE and DELETE at the database level, so the
-        history below is read-only by construction. Intake is the wholesale purchase event: MUD buys the piece
-        outright, which is why unit cost is captured here and why there is no payout ledger anywhere.
-      </Note>
+      <Explain>
+        Stock counts are never typed in directly. They move when you record what arrived from a workshop,
+        which is also where the price paid is captured. The history below cannot be edited or deleted by
+        anyone, including us — that is deliberate, and it is what makes the impact figures trustworthy.
+      </Explain>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_22rem]">
         <Panel title="Current levels">

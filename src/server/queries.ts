@@ -70,11 +70,13 @@ const CARD_SELECT = sql`
      from product_variants v join stock_levels sl on sl.variant_id = v.id
     where v.product_id = p.id) as available,
   (select to_jsonb(i) from (
-     select storage_path, alt, width, height, origin, is_scale_reference
+     select coalesce('/api/media/' || media_id::text, storage_path) as storage_path,
+            alt, width, height, origin, is_scale_reference
        from product_images where product_id = p.id order by sort_order limit 1
    ) i) as image,
   (select to_jsonb(i) from (
-     select storage_path, alt, width, height, origin, is_scale_reference
+     select coalesce('/api/media/' || media_id::text, storage_path) as storage_path,
+            alt, width, height, origin, is_scale_reference
        from product_images where product_id = p.id order by sort_order offset 1 limit 1
    ) i) as hover_image
 `;
@@ -135,7 +137,8 @@ export async function getProduct(slug: string): Promise<ProductDetail | null> {
 
   const [images, variants] = await Promise.all([
     sql<ProductImage[]>`
-      select storage_path, alt, width, height, origin, is_scale_reference
+      select coalesce('/api/media/' || media_id::text, storage_path) as storage_path,
+            alt, width, height, origin, is_scale_reference
         from product_images where product_id = ${product.id} order by sort_order`,
     sql<ProductVariant[]>`
       select v.id, v.sku, v.option_name, v.option_value,
@@ -153,9 +156,18 @@ export async function getProduct(slug: string): Promise<ProductDetail | null> {
   return { ...product, images, variants };
 }
 
+export type CategoryCard = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  image_id: string | null;
+  count: number;
+};
+
 export async function listCategories() {
-  return sql<{ slug: string; name: string; description: string | null; count: number }[]>`
-    select cat.slug, cat.name, cat.description,
+  return sql<CategoryCard[]>`
+    select cat.id, cat.slug, cat.name, cat.description, cat.image_id,
            count(p.id) filter (where p.status = 'published')::int as count
       from categories cat
       left join products p on p.category_id = cat.id
@@ -185,12 +197,19 @@ export async function listFacets() {
   return { materials, makers, priceRange: priceRange[0] ?? { min: 0, max: 0 } };
 }
 
+export type CollectionCard = {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  cover_image: string | null;
+  cover_image_id: string | null;
+  count: number;
+};
+
 export async function listCollections() {
-  return sql<{
-    slug: string; title: string; subtitle: string | null;
-    cover_image: string | null; count: number;
-  }[]>`
-    select c.slug, c.title, c.subtitle, c.cover_image,
+  return sql<CollectionCard[]>`
+    select c.id, c.slug, c.title, c.subtitle, c.cover_image, c.cover_image_id,
            count(cp.product_id)::int as count
       from collections c
       left join collection_products cp on cp.collection_id = c.id
@@ -202,9 +221,9 @@ export async function listCollections() {
 export async function getCollection(slug: string) {
   const [collection] = await sql<{
     id: string; slug: string; title: string; subtitle: string | null;
-    story: string | null; cover_image: string | null;
+    story: string | null; cover_image: string | null; cover_image_id: string | null;
   }[]>`
-    select id, slug, title, subtitle, story, cover_image
+    select id, slug, title, subtitle, story, cover_image, cover_image_id
       from collections where slug = ${slug} and status = 'published'`;
   if (!collection) return null;
 
@@ -220,10 +239,11 @@ export async function getCollection(slug: string) {
 export async function listMakers() {
   return sql<{
     slug: string; display_name: string; craft: string | null;
-    portrait_image: string | null; community_name: string; district: string;
+    portrait_image: string | null; portrait_image_id: string | null;
+    community_name: string; district: string;
     working_since: number | null; product_count: number;
   }[]>`
-    select mk.slug, mk.display_name, mk.craft, mk.portrait_image,
+    select mk.slug, mk.display_name, mk.craft, mk.portrait_image, mk.portrait_image_id,
            com.name as community_name, com.district, mk.working_since,
            count(p.id) filter (where p.status = 'published')::int as product_count
       from makers mk
@@ -233,6 +253,118 @@ export async function listMakers() {
      group by mk.id, com.id
      order by mk.display_name
   `;
+}
+
+/* ------------------------------------------------------------ communities -- */
+
+/**
+ * Communities are the browse axis the storefront leads with. A community is
+ * only listed once something of theirs is actually buyable — an entry with an
+ * empty shelf reads as a directory listing, which is the opposite of the point.
+ */
+export type CommunityCard = {
+  id: string;
+  slug: string;
+  name: string;
+  district: string;
+  province: string | null;
+  summary: string | null;
+  cover_image: string | null;
+  cover_image_id: string | null;
+  working_since: number | null;
+  maker_count: number | null;
+  product_count: number;
+};
+
+export async function listCommunities() {
+  return sql<CommunityCard[]>`
+    select com.id, com.slug, com.name, com.district, com.province, com.summary,
+           com.cover_image, com.cover_image_id, com.working_since, com.maker_count,
+           count(p.id) filter (where p.status = 'published')::int as product_count
+      from communities com
+      left join products p on p.community_id = com.id
+     where com.status = 'published'
+     group by com.id
+     order by count(p.id) filter (where p.status = 'published') desc, com.name
+  `;
+}
+
+export async function getCommunity(slug: string) {
+  const [community] = await sql<(CommunityCard & { story: string | null })[]>`
+    select com.id, com.slug, com.name, com.district, com.province, com.summary,
+           com.story, com.cover_image, com.cover_image_id, com.working_since,
+           com.maker_count,
+           count(p.id) filter (where p.status = 'published')::int as product_count
+      from communities com
+      left join products p on p.community_id = com.id
+     where com.slug = ${slug} and com.status = 'published'
+     group by com.id`;
+  if (!community) return null;
+
+  const [products, makers] = await Promise.all([
+    sql<ProductCard[]>`
+      select ${CARD_SELECT} ${CARD_JOINS}
+      where p.community_id = ${community.id} and p.status = 'published'
+      order by p.sort_order`,
+    sql<{ slug: string; display_name: string; craft: string | null }[]>`
+      select slug, display_name, craft from makers
+       where community_id = ${community.id} and status = 'published'
+       order by display_name`,
+  ]);
+
+  return { ...community, products, makers };
+}
+
+/* ------------------------------------------------------------ block rails -- */
+
+/**
+ * The product row a `product_rail` block asks for. Every branch is one query,
+ * and `manual` preserves the order the operator dragged them into — Postgres
+ * will not do that for a plain `= any()`, hence the ordinality join.
+ */
+export async function listProductsForRail(spec: {
+  source: string;
+  collectionId: string | null;
+  categoryId: string | null;
+  productIds: string[];
+  limit: number;
+}): Promise<ProductCard[]> {
+  const limit = Math.max(1, Math.min(24, spec.limit));
+
+  if (spec.source === "manual") {
+    if (spec.productIds.length === 0) return [];
+    return sql<ProductCard[]>`
+      select ${CARD_SELECT} ${CARD_JOINS}
+      join unnest(${spec.productIds}::uuid[]) with ordinality as pick(id, ord) on pick.id = p.id
+      where p.status = 'published'
+      order by pick.ord
+      limit ${limit}`;
+  }
+
+  if (spec.source === "collection") {
+    if (!spec.collectionId) return [];
+    return sql<ProductCard[]>`
+      select ${CARD_SELECT} ${CARD_JOINS}
+      join collection_products cp on cp.product_id = p.id
+      where cp.collection_id = ${spec.collectionId} and p.status = 'published'
+      order by cp.sort_order
+      limit ${limit}`;
+  }
+
+  if (spec.source === "category") {
+    if (!spec.categoryId) return [];
+    return sql<ProductCard[]>`
+      select ${CARD_SELECT} ${CARD_JOINS}
+      where p.category_id = ${spec.categoryId} and p.status = 'published'
+      order by p.sort_order, p.published_at desc nulls last
+      limit ${limit}`;
+  }
+
+  return sql<ProductCard[]>`
+    select ${CARD_SELECT} ${CARD_JOINS}
+    where p.status = 'published'
+    order by p.sort_order asc, p.published_at desc nulls last
+    limit ${limit}`;
 }
 
 export async function getMaker(slug: string) {

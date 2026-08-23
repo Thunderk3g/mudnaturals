@@ -1,7 +1,7 @@
 import { getImpact } from "@/server/admin";
 import { refreshImpactAction } from "../../actions";
 import { ActionForm } from "../../action-form";
-import { Empty, Money, Note, PageHeader, Panel, Stat, Table, When, numCell, td, th } from "../../ui";
+import { Empty, Explain, Money, PageHeader, Panel, Stat, Table, When, numCell, td, th } from "../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -27,16 +27,16 @@ export default async function ImpactPage() {
             >
               Export CSV
             </a>
-            <ActionForm action={refreshImpactAction} submitLabel="Refresh views" variant="primary" size="md" />
+            <ActionForm action={refreshImpactAction} submitLabel="Recalculate" variant="primary" size="md" />
           </>
         }
       />
 
-      <Note>
-        Layer 1 of the impact story is the trade itself: what MUD actually paid makers, computed from stock
-        intake rather than estimated. The views are materialised, so these numbers are only as fresh as the last
-        refresh.
-      </Note>
+      <Explain>
+        What MUD has actually paid workshops, added up from what was recorded as arriving — not an estimate
+        and not a claim. The figures are worked out in advance rather than on the fly, so press
+        <strong> Recalculate</strong> after recording new stock.
+      </Explain>
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Stat label="Revenue" value={<Money paisa={n("revenue_paisa")} />} />
@@ -78,7 +78,9 @@ export default async function ImpactPage() {
                   <td className={numCell}>
                     <Money paisa={row.paid_to_maker_paisa} />
                   </td>
-                  <td className={`${td} font-mono text-xs`}>{row.working_with_us_since ?? "—"}</td>
+                  <td className={td}>
+                    <When value={row.working_with_us_since} time={false} />
+                  </td>
                 </tr>
               ))}
             </tbody>

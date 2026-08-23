@@ -559,6 +559,19 @@ await sql.unsafe(`
   restart identity cascade
 `);
 
+// Page blocks are NOT truncated — they are the operator's work, not seed data,
+// and the media library they point at survives too. But a block can hold the id
+// of a collection, community, category or product inside its jsonb payload,
+// where no foreign key can reach it, and a reseed mints new ids. Drop those
+// pointers so every block falls back to its automatic choice rather than aiming
+// at a row that no longer exists.
+await sql.unsafe(`
+  update page_blocks
+     set data = data - 'collection_id' - 'community_id' - 'category_id'
+                     - 'category_ids'  - 'product_ids'
+   where data ?| array['collection_id','community_id','category_id','category_ids','product_ids']
+`);
+
 const communityId = {}, makerId = {}, materialId = {}, techniqueId = {}, categoryId = {}, collectionId = {}, productId = {};
 
 for (const c of COMMUNITIES) {

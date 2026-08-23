@@ -131,7 +131,11 @@ export default async function ProductPage({ params }: PageProps) {
           <Gallery images={product.images} />
 
           <div className="rise">
-            <ProvenanceLine maker={product.maker_name} district={product.district} />
+            <ProvenanceLine
+              community={product.community_name}
+              maker={product.maker_name}
+              district={product.district}
+            />
             <h1 className="mt-2 text-3xl leading-tight lg:text-4xl">{product.name}</h1>
             {product.subtitle ? (
               <p className="mt-2 text-lg text-ink-2">{product.subtitle}</p>

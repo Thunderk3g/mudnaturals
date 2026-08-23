@@ -2,29 +2,35 @@
  * Every user-facing string lives here (decision 10: English now, Nepali later
  * without a component rewrite).
  *
- * Copy register, enforced: verbs of making, never verbs of helping. Makers are
- * partners and producers. Banned throughout — help, support, give back, empower,
- * uplift, underprivileged, change lives, beneficiary, and unqualified
- * eco-friendly / green / responsible.
+ * Copy register, enforced: verbs of making, never verbs of helping. Communities
+ * and makers are partners and producers. Banned throughout — help, support,
+ * give back, empower, uplift, underprivileged, change lives, beneficiary, and
+ * unqualified eco-friendly / green / responsible.
+ *
+ * Order, also enforced: the community comes first and the maker second. This
+ * store sells objects from places it buys from, not profiles of individuals.
+ * A maker's name appears where one has agreed to it, under the community that
+ * produced the work — never as the headline.
  */
 
 export const copy = {
   brand: {
     name: "MUD Naturals",
-    tagline: "Crafted by community",
+    tagline: "Objects with origins",
     description:
-      "A concept store for objects with origins — baskets, natural care, and everyday goods made by independent Nepali makers, each one traceable to the hands and the place it came from.",
+      "A curated store for objects with origins — baskets, natural care, and everyday goods from a handful of Nepali communities we buy from directly, each one traceable to the place it came from.",
     philosophy: "People × Nature × Craft × Commerce",
   },
 
   nav: {
     shop: "Shop",
     collections: "Collections",
+    communities: "Communities",
     makers: "Makers",
     journal: "Journal",
     story: "Our Story",
     impact: "Our Impact",
-    craft: "Craft & Materials",
+    craft: "Craft",
     about: "About",
     contact: "Contact",
     cart: "Cart",
@@ -34,16 +40,17 @@ export const copy = {
     close: "Close",
   },
 
+  /**
+   * What is left of the homepage's copy.
+   *
+   * The hero, the section headings and the calls to action moved into
+   * `page_blocks` when the homepage became editable — they are data now, and
+   * keeping a second copy of them here would only let the two drift apart.
+   * These are the labels other pages borrow.
+   */
   home: {
-    heroEyebrow: "Objects with origins",
-    heroTitle: "Everything here was made by someone we can name.",
-    heroBody:
-      "Baskets coiled from sikki grass, oils pressed in the hills, soaps cured for a month. We buy directly from the makers, at prices agreed with them, and we tell you exactly where each object came from.",
-    heroCta: "Browse the shop",
-    heroSecondary: "Meet the makers",
-    categoriesTitle: "The store",
     collectionTitle: "Collected",
-    makerTitle: "From the workshop",
+    communityTitle: "Where it comes from",
     journalTitle: "Field notes",
     viewAll: "View all",
   },
@@ -182,10 +189,34 @@ export const copy = {
     notFound: "We could not find that order.",
   },
 
+  /**
+   * Communities are the axis the site is organised on. A community is a place
+   * and a group of people who work there — not a profile, not a feed, and not
+   * something you follow. The copy stays at that level: what is made, where,
+   * since when, and what of it is in the shop today.
+   */
+  communities: {
+    title: "Communities",
+    intro:
+      "We buy from a small number of communities and go back to the same ones each season. Each page below says where it is, what is made there, and what of it is in the shop today.",
+    workingSince: (year: number) => `Buying from here since ${year}`,
+    communityCount: (n: number) => (n === 1 ? "1 community" : `${n} communities`),
+    theirWork: (name: string) => `Objects from ${name}`,
+    recordTitle: "Community record",
+    district: "District",
+    province: "Province",
+    // A lead-in, not a heading: the names run on as a sentence rather than
+    // standing up as a roster of profiles.
+    makersLead: "Worked here by",
+    story: "About this place",
+    empty: "No communities are published yet.",
+    objectsHere: "In the shop from here",
+  },
+
   makers: {
     title: "Makers",
     intro:
-      "We buy directly from these workshops and households. Every name here is published with written permission.",
+      "The workshops and households behind the objects. We buy through the community, and name the maker where one has agreed to be named.",
     workingSince: (year: number) => `Working with us since ${year}`,
     makerCount: (n: number) => (n === 1 ? "1 maker" : `${n} makers`),
     process: "How it is made",

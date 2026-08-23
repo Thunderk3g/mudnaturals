@@ -15,6 +15,8 @@ const eslintConfig = [
     ignores: [
       "node_modules/**",
       ".next/**",
+      // NEXT_DIST_DIR can point anywhere; anything matching is build output.
+      ".next-*/**",
       "out/**",
       "build/**",
       "next-env.d.ts",

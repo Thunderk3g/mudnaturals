@@ -14,6 +14,7 @@ import {
   type RawSearchParams,
 } from "@/components/shop/filter-bar";
 import { FilterPanel } from "@/components/shop/filter-panel";
+import { PageBlocks } from "@/components/blocks/page-blocks";
 import { copy } from "@/content/copy";
 import { shopCopy } from "@/content/shop-copy";
 
@@ -49,56 +50,62 @@ export default async function ShopPage({
   });
 
   return (
-    <Section>
-      <Breadcrumb trail={[{ href: "/", label: copy.brand.name }, { label: copy.shop.title }]} />
+    <>
+      {/* Anything the console puts above the grid. Empty by default, so the
+          shop looks exactly as it did until someone adds a block. */}
+      <PageBlocks pageKey="shop" />
 
-      <header className="mt-6 max-w-2xl">
-        <h1 className="text-4xl lg:text-5xl">{copy.shop.allProducts}</h1>
-        <p className="mt-4 text-ink-2">{shopCopy.intro}</p>
-      </header>
+      <Section>
+        <Breadcrumb trail={[{ href: "/", label: copy.brand.name }, { label: copy.shop.title }]} />
 
-      <div className="mt-12 gap-x-12 lg:grid lg:grid-cols-[15rem_1fr] lg:items-start">
-        <div className="lg:sticky lg:top-8">
-          <FilterPanel
-            action="/shop"
-            hidden={hiddenFields(params, ["category", "material", "maker", "price"])}
-            facets={facets}
-            activeCount={activeFilterCount(params)}
-            formKey={toQuery(params)}
-          />
-        </div>
+        <header className="mt-6 max-w-2xl">
+          <h1 className="text-4xl lg:text-5xl">{copy.shop.allProducts}</h1>
+          <p className="mt-4 text-ink-2">{shopCopy.intro}</p>
+        </header>
 
-        <div className="mt-8 lg:mt-0">
-          <FilterBar
-            path="/shop"
-            params={params}
-            labels={{
-              categories,
-              materials: facetData.materials,
-              makers: facetData.makers,
-            }}
-            count={products.length}
-          />
+        <div className="mt-12 gap-x-12 lg:grid lg:grid-cols-[15rem_1fr] lg:items-start">
+          <div className="lg:sticky lg:top-8">
+            <FilterPanel
+              action="/shop"
+              hidden={hiddenFields(params, ["category", "material", "maker", "price"])}
+              facets={facets}
+              activeCount={activeFilterCount(params)}
+              formKey={toQuery(params)}
+            />
+          </div>
 
-          <div className="rise mt-10">
-            {products.length === 0 ? (
-              <EmptyState
-                title={copy.shop.empty}
-                body={copy.shop.emptyHelp}
-                action={
-                  <LinkButton href="/shop" variant="secondary">
-                    {copy.shop.clearFilters}
-                  </LinkButton>
-                }
-              />
-            ) : params.view === "ledger" ? (
-              <ProductLedger products={products} />
-            ) : (
-              <ProductGrid products={products} />
-            )}
+          <div className="mt-8 lg:mt-0">
+            <FilterBar
+              path="/shop"
+              params={params}
+              labels={{
+                categories,
+                materials: facetData.materials,
+                makers: facetData.makers,
+              }}
+              count={products.length}
+            />
+
+            <div className="rise mt-10">
+              {products.length === 0 ? (
+                <EmptyState
+                  title={copy.shop.empty}
+                  body={copy.shop.emptyHelp}
+                  action={
+                    <LinkButton href="/shop" variant="secondary">
+                      {copy.shop.clearFilters}
+                    </LinkButton>
+                  }
+                />
+              ) : params.view === "ledger" ? (
+                <ProductLedger products={products} />
+              ) : (
+                <ProductGrid products={products} />
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </Section>
+      </Section>
+    </>
   );
 }

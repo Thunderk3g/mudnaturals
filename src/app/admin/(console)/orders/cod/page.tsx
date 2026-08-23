@@ -3,7 +3,7 @@ import { listCodQueue } from "@/server/admin";
 import { formatNpr } from "@/lib/money";
 import { confirmCodAction, recordRefusalAction } from "../../../actions";
 import { ActionForm } from "../../../action-form";
-import { Empty, Money, Note, PageHeader, Panel, Pill, StatusPill, Table, When, numCell, td, th } from "../../../ui";
+import { Empty, Explain, Money, Note, PageHeader, Panel, Pill, StatusPill, Table, When, numCell, td, th } from "../../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +23,18 @@ export default async function CodQueuePage() {
   return (
     <>
       <PageHeader
-        title="COD confirmation queue"
+        title="Phone confirmations"
         meta={`${orders.length} order${orders.length === 1 ? "" : "s"} waiting, oldest first`}
       />
 
+      <Explain>
+        Ring each of these and check the customer still wants the order and the address is right. Until you
+        do, the system will not let the parcel be packed.
+      </Explain>
+
       <Note tone="warn">
-        COD is roughly 80% of Nepali ecommerce and unconfirmed COD sends about a quarter of parcels back.
-        Confirming by phone is the RTO control: until it lands, the database refuses to let the order be packed.
+        Nearly every order in Nepal is paid on the doorstep, and about a quarter of unconfirmed ones come
+        straight back. A two-minute call is the cheapest thing on this screen.
       </Note>
 
       <Panel className="mt-4">

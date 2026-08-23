@@ -4,6 +4,7 @@ import Link from "next/link";
 import { listProducts } from "@/server/queries";
 import { Section, Breadcrumb, Prose, Rule } from "@/components/ui/layout";
 import { ProductRail } from "@/components/story/product-rail";
+import { PageBlocks } from "@/components/blocks/page-blocks";
 import { copy } from "@/content/copy";
 import { storyCopy, siteUrl } from "@/content/story-copy";
 
@@ -39,6 +40,10 @@ export default async function AboutPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: ldJson(jsonLd) }}
       />
+
+      {/* Whatever the console has put on this page sits above the written
+          spine. Empty by default — the page reads as it always did. */}
+      <PageBlocks pageKey="about" />
 
       <Section tight>
         <Breadcrumb trail={[{ href: "/", label: "Home" }, { label: copy.nav.about }]} />
@@ -119,8 +124,11 @@ export default async function AboutPage() {
             <p className="mt-4 max-w-[58ch] text-ink-2">{copy.makers.consentNote}</p>
             <p className="mt-4 max-w-[58ch] text-ink-2">{storyCopy.makers.attributionBody}</p>
             <p className="mt-5">
-              <Link href="/makers" className="spec text-ink hover:text-clay">
-                {copy.makers.title} →
+              <Link
+                href="/communities"
+                className="spec link-wipe text-ink transition-colors duration-300 hover:text-clay"
+              >
+                {copy.communities.title} <span aria-hidden className="arrow">→</span>
               </Link>
             </p>
           </div>
