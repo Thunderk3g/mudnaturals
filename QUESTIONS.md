@@ -264,6 +264,13 @@ long delivery takes, what happens to a damaged basket, and whether anything can
 be sent back. Nobody has written that policy, and it cannot be invented here:
 returns terms are a commercial commitment, and for food they are a legal one.
 
+The same applies to **privacy and terms**, which the footer also linked at and
+which have also been removed. Checkout collects a name, a phone number and a
+delivery address, so a privacy policy is not optional — but a 404 where one
+should be is worse than an honest absence, and worse than a policy written by
+someone with no standing to write it. Five pages are now owed: delivery,
+returns, FAQ, privacy, terms.
+
 **What changes with an answer.** Write the three policies. They then need
 somewhere to live — either three new routes, or (better) extend
 `page_blocks.page_key` beyond `home | about | shop` so the console can build

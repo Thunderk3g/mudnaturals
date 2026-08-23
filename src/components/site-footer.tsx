@@ -210,20 +210,7 @@ export async function SiteFooter() {
         <div className="container-page flex flex-wrap items-center justify-between gap-x-8 gap-y-3 py-6">
           <p className="spec">{copy.footer.rights(new Date().getFullYear())}</p>
           <p className="spec max-w-md">{homeCopy.footer.photographyNote}</p>
-          <div className="flex gap-6">
-            <Link
-              href="/privacy"
-              className="spec link-wipe text-ink transition-colors duration-300 hover:text-clay"
-            >
-              {copy.footer.privacy}
-            </Link>
-            <Link
-              href="/terms"
-              className="spec link-wipe text-ink transition-colors duration-300 hover:text-clay"
-            >
-              {copy.footer.terms}
-            </Link>
-          </div>
+
         </div>
       </div>
     </footer>
