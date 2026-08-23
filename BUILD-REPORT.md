@@ -2,25 +2,65 @@
 
 Written for someone returning to this with no memory of the session.
 
-**State: the shop is built, verified and committed. It is not yet deployed —
-network egress from this machine to github.com failed part-way through and never
-recovered. Five commits are waiting locally.**
+**State: deployed and live at https://mudnaturals.vercel.app.** Pushing to
+`main` ships production; the last deploy generated 20/20 pages in 38s.
 
 ---
 
-## To finish the deploy
+## Second pass — the console became a CMS
+
+Everything below this section describes the original build. One thing has
+changed shape since, and it is the part most likely to matter to whoever reads
+this next.
+
+The console could take orders and edit products. It could not change the
+homepage, hold an image that did not come from the build-time crop script, or
+change the words in the chrome around every page. It can now do all three, and
+every change reaches the live site. The full explanation is under **The console**
+in `README.md`; the three things worth knowing here:
+
+- **Pages are rows, not code.** `page_blocks` holds an ordered list of typed
+  sections per page. `src/lib/blocks.ts` declares what each type's payload holds,
+  and the console generates its editor from that declaration — so there is one
+  editor for every kind of section, not ten screens. The migration seeds the
+  homepage exactly as it shipped, so nothing changed visually and everything
+  became editable.
+- **Images live in Postgres**, served by `/api/media/[id]` behind a one-year
+  immutable header, re-encoded to WebP on upload. Twenty-one photographs take
+  4 MB. This was a deliberate trade against adding a second vendor: no token to
+  rotate and no bucket to leak, at the cost of a function invocation per image
+  per region per year.
+- **Saving invalidates both layers.** Every action calls `revalidateCms()` and
+  `revalidatePath("/", "layout")`. Drop the second and a save lands in the
+  database, shows in the console, and does not appear on the site — the single
+  most common way a setup like this disappoints the person using it.
+
+The storefront also shifted from leading with individual makers to leading with
+communities: `/communities` is the browse axis, `/makers` redirects there, and
+maker pages remain reachable from the products they made. No social features —
+the sense of community comes from curation, photography and the labels.
+
+Two pre-existing bugs surfaced while verifying and are fixed: `/admin/impact`
+returned 500 because a `date` column arrives as a JS `Date` and was printed
+straight into JSX, and an emptied number box in a section fell back to the
+minimum rather than the default because `Number("")` is 0.
+
+---
+
+## Deploying
+
+Vercel is linked to the repo and builds on every push to `main`, so a deploy is
+a push. Before you trust one:
 
 ```bash
-cd mudnaturals
+npm run test          # unit tests
+npm run security      # must print PASS — anon-key leak test
 git push origin main
+npm run db:migrate    # only if a migration is pending; safe to run either way
 ```
 
-That is the whole remaining step. Vercel is already linked to the repo and builds
-on every push to `main`, so the deploy runs server-side. Then:
-
-```bash
-npm run security      # must print PASS before you trust the deploy
-```
+A migration is applied by hand, not by the build. `npm run db:migrate:status`
+lists what is pending.
 
 **One thing to check by hand in the Vercel dashboard:** `ESEWA_SECRET_KEY`.
 Mid-session I corrected it (see "eSewa key" below) by removing and re-adding it
@@ -113,7 +153,7 @@ Full detail in `QUESTIONS.md`. The short list:
 - **Vercel is on Hobby**, which caps crons at once per day. Reconciliation wants
   every 2–5 minutes, and with no reliable eSewa callback that cron is the primary
   confirmation channel. Three fallbacks carry it meanwhile (the order page polls
-  itself, admin has "Reconcile now", the daily cron sweeps) but Pro is
+  itself, admin has "Check now", the daily cron sweeps) but Pro is
   effectively required.
 - **eSewa is on UAT credentials.** Production is a deliberate cutover.
 - **No maker consent collected**, so the USP runs at community level rather than

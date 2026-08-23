@@ -141,7 +141,7 @@ channel — not a safety net.
 - `vercel.json` schedules reconciliation at the daily maximum Hobby allows.
 - The order-status page **polls itself** every 5 seconds for ~3 minutes, so the
   common case — customer waits on the thank-you page — resolves without any cron.
-- The admin reconciliation queue has a **"Reconcile now"** action that runs the
+- The admin payments queue has a **"Check now"** action that runs the
   same handler on demand.
 - Handlers are idempotent and cheap, so raising the schedule to `*/5 * * * *` is a
   one-line change the moment the plan is upgraded.
@@ -205,7 +205,19 @@ maker visit roughly monthly for the journal. Those visits are the photo shoot: a
 phone camera in good daylight, shooting object / hands-mid-process / place,
 produces portraits, process shots and journal art in one trip.
 
-**Blocks launch: no.** **Caps the premium perception: yes.**
+**Since this was written, the last technical obstacle went away.** The console
+now has a photo library: **Website → Photos**, or the picker inside any product,
+section, category or collection. Upload straight off a phone — files are rotated
+by their EXIF orientation, resized and re-encoded on the way in, so nothing needs
+preparing first. Replacing a photograph everywhere it appears is one upload.
+
+That means the twenty-one cropped screenshots can be retired one at a time,
+in whatever order the visits happen, with no deploy and no developer. The
+watermarked six and the three sharing a single frame are the ones to replace
+first.
+
+**Blocks launch: no.** **Caps the premium perception: yes** — but the fix is now
+a task for whoever holds the phone, not a ticket.
 
 ---
 

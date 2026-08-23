@@ -184,8 +184,8 @@ hence this section.
 
 Vercel **Hobby** caps cron at once per day; reconciliation wants every 2–5
 minutes. Until the plan is upgraded, three things carry the load: the order
-status page polls itself for ~3 minutes, the admin reconciliation queue has a
-"Reconcile now" action, and the daily cron sweeps whatever is left. Raising the
+status page polls itself for ~3 minutes, the admin payments queue has a
+"Check now" action, and the daily cron sweeps whatever is left. Raising the
 schedule is a one-line change in `vercel.json`.
 
 ---
