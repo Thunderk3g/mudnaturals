@@ -45,12 +45,14 @@ const FALLBACK_GROUPS: FooterGroup[] = [
     ],
   },
   {
+    // Only routes that exist. Delivery, returns and FAQ pages need policy
+    // nobody has written yet (QUESTIONS.md #12) — linking at them meanwhile put
+    // four 404s in the footer of every page on the site, and Next prefetched
+    // all four on hover.
     title: copy.footer.helpHeading,
     links: [
-      { href: "/shipping", label: copy.footer.shipping },
-      { href: "/returns", label: copy.footer.returns },
-      { href: "/orders", label: copy.footer.trackOrder },
-      { href: "/faq", label: copy.footer.faq },
+      { href: "/order/lookup", label: copy.footer.trackOrder },
+      { href: "/contact", label: copy.nav.contact },
     ],
   },
 ];

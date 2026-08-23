@@ -28,11 +28,11 @@ function IconSearch() {
   );
 }
 
-function IconAccount() {
+function IconTrackOrder() {
   return (
     <svg aria-hidden viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.4">
-      <circle cx="10" cy="7" r="3.2" />
-      <path d="M3.8 17c.7-3.3 3.2-5 6.2-5s5.5 1.7 6.2 5" strokeLinecap="round" />
+      <path d="M10 2.6 17 6v8l-7 3.4L3 14V6l7-3.4Z" strokeLinejoin="round" />
+      <path d="M3 6l7 3.4L17 6M10 9.4v8" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -147,11 +147,11 @@ export function SiteNav({
             <IconSearch />
           </Link>
           <Link
-            href="/account"
-            aria-label={copy.nav.account}
+            href="/order/lookup"
+            aria-label={copy.nav.trackOrder}
             className="hidden text-ink transition-colors duration-300 hover:text-clay sm:block"
           >
-            <IconAccount />
+            <IconTrackOrder />
           </Link>
           <Link
             href="/cart"
@@ -185,8 +185,8 @@ export function SiteNav({
             </Link>
           ))}
 
-          <Link href="/account" className="spec mt-8 block text-ink">
-            {copy.nav.account}
+          <Link href="/order/lookup" className="spec mt-8 block text-ink">
+            {copy.nav.trackOrder}
           </Link>
         </nav>
       </div>

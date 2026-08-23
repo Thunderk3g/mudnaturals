@@ -28,18 +28,37 @@ function connect() {
   // egress, so connecting there fails with ENETUNREACH.
   //
   // Not the transaction pooler (6543) either, despite that being the usual
-  // serverless advice. Measured against this project, postgres.js stalls on it
-  // under concurrency — 20 parallel queries returned 8 and hung the rest until
-  // the two-minute statement timeout, which is exactly how the first builds
-  // failed. The same test against session mode returns 20/20 in about two
-  // seconds. Session mode also behaves like a real connection, so prepared
-  // statements work and stay on.
+  // serverless advice. Measured repeatedly against this project: roughly one
+  // query per client succeeds and every subsequent one hangs to the timeout —
+  // 12 of 36 across twelve clients, unchanged by `prepare: false`,
+  // `fetch_types: false`, or dropping the search_path startup parameter. The
+  // same load in session mode returns 45/45 in about two seconds.
+  //
+  // `max` is 1, and that number is load-bearing. Session mode holds one
+  // upstream connection per client connection, and this project's pooler caps
+  // them at 15 — so the budget is not per instance, it is shared across every
+  // serverless instance alive at once. At `max: 4` twelve instances ask for 48,
+  // and Supabase answers with
+  //
+  //     (EMAXCONNSESSION) max clients reached in session mode
+  //
+  // which is a FATAL, so the page 500s. That is what took /impact and /admin
+  // down in production. Measured: max 4 × 12 instances → 15/36 succeed;
+  // max 1 × 15 instances → 45/45; max 1 × 20 instances → the first 15 succeed
+  // and the rest fail fast rather than hang.
+  //
+  // The ceiling is therefore ~15 concurrent instances *that are mid-query*.
+  // Raising it is a dashboard change on Supabase (Database → Connection
+  // pooling → Pool size), not a code change. Until then, keep this at 1: a
+  // request's queries serialise, which costs a Seoul round trip each, but
+  // almost every storefront page is ISR'd and never reaches here at all.
   return postgres(url, {
     ssl: "require",
-    // Modest: session mode holds an upstream connection per client connection,
-    // so this multiplies across serverless instances.
-    max: 4,
-    idle_timeout: 10,
+    max: 1,
+    // Short, so an instance between requests hands its connection back to the
+    // shared budget quickly. A busy instance keeps resetting the timer, so this
+    // costs reconnects only where they are cheap.
+    idle_timeout: 3,
     connect_timeout: 15,
     connection: { search_path: "public, extensions" },
     transform: { undefined: null },

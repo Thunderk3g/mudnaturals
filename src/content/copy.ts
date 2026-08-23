@@ -35,7 +35,7 @@ export const copy = {
     contact: "Contact",
     cart: "Cart",
     search: "Search",
-    account: "Account",
+    trackOrder: "Track an order",
     menu: "Menu",
     close: "Close",
   },

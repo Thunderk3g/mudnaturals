@@ -245,7 +245,37 @@ mono tagline — the seal's own words. No logo file exists in the repo.
 
 ---
 
-## 12. Decisions taken alone, recorded for review
+## 12. Delivery, returns and FAQ pages — NEEDS A HUMAN
+
+**Context.** The footer linked to `/shipping`, `/returns`, `/faq` and `/orders`,
+and the header to `/account`. None of those routes exist. Because the links sat
+in the site chrome they appeared on **every page**, and Next prefetched all of
+them on hover — so a customer moving a mouse across the footer generated four
+404s. That is what showed up in the browser console as
+`shipping?_rsc=…  404`.
+
+**What shipped.** The links now point only at routes that exist: `/order/lookup`
+for tracking, `/contact` for everything else. The header's person icon became a
+parcel — checkout is guest-only by design, so an account icon was promising
+something that does not exist and never will.
+
+**What is still missing, and it is content, not code.** A shop needs to say how
+long delivery takes, what happens to a damaged basket, and whether anything can
+be sent back. Nobody has written that policy, and it cannot be invented here:
+returns terms are a commercial commitment, and for food they are a legal one.
+
+**What changes with an answer.** Write the three policies. They then need
+somewhere to live — either three new routes, or (better) extend
+`page_blocks.page_key` beyond `home | about | shop` so the console can build
+them as ordinary pages with no deploy. The second is about an hour's work and
+the block editor already handles everything such a page needs.
+
+**Blocks launch: yes** for returns and delivery. A Nepali customer paying cash
+on the doorstep will ask both questions before they order.
+
+---
+
+## 13. Decisions taken alone, recorded for review
 
 Per the autonomy rules these were reversible and did not warrant a stop. Flagging
 them so they are not silently inherited:

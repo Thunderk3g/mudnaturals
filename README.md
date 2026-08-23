@@ -180,6 +180,40 @@ Set it when the plan is upgraded.
 Note also that `vercel.json` rejects unknown keys, so it cannot carry comments —
 hence this section.
 
+### Known limitation: 15 database connections
+
+The session pooler caps this project at **15 upstream connections**, and that
+budget is shared across every serverless instance alive at once — it is not per
+instance. `src/lib/db.ts` therefore sets `max: 1`, which is load-bearing rather
+than conservative: at `max: 4`, twelve instances asked for 48 and Supabase
+answered
+
+    (EMAXCONNSESSION) max clients reached in session mode
+
+which is FATAL, so the page 500s. That took `/impact` and `/admin` down in
+production on 23 Aug 2026.
+
+Measured, twelve to thirty independent clients issuing three requests each:
+
+| config | result |
+|---|---|
+| session, `max: 4`, 12 instances | 15/36 — the production failure |
+| session, `max: 1`, 15 instances | 45/45 in 2.2s |
+| session, `max: 1`, 20 instances | first 15 succeed, rest fail fast |
+| transaction pooler, any options | ~12/36, the rest hang to the timeout |
+
+The transaction pooler was re-tested with `prepare: false`, `fetch_types: false`
+and no `search_path` startup parameter. All four variants behave the same: about
+one query per client succeeds and every subsequent one hangs. It is not an
+option here.
+
+**Raising the ceiling is a dashboard change, not a code change** — Supabase →
+Database → Connection pooling → Pool size. Do that before any campaign that
+could put more than ~15 cold instances in flight at once. Note also that `max: 1`
+serialises the queries within a single render, so each one costs a Seoul round
+trip; almost every storefront page is ISR'd and never reaches the database, but
+a cache-miss render is slower than it looks.
+
 ### Known limitation: cron frequency
 
 Vercel **Hobby** caps cron at once per day; reconciliation wants every 2–5
